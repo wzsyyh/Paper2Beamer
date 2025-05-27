@@ -1,4 +1,4 @@
-# PaperToPPT
+# paper-to-beamer
 
 ### Project Documentation: Academic Paper to Beamer Slide Generator
 
