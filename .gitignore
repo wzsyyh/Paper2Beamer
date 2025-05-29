@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+.env.local
+env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# LaTeX
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Output
+output/raw/*
+output/plan/*
+output/tex/*
+!output/raw/.gitkeep
+!output/plan/.gitkeep
+!output/tex/.gitkeep
+
+# Misc
+.DS_Store
+Thumbs.db 
