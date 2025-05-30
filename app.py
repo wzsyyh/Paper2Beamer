@@ -629,7 +629,7 @@ def create_ui():
                 
                 本工具是开源项目，采用MIT许可证。欢迎贡献代码和提出建议。
                 
-                GitHub仓库：[https://github.com/yourusername/paper-to-beamer](https://github.com/yourusername/paper-to-beamer)
+                GitHub仓库：[https://github.com/wzsyyh/paper-to-beamer](https://github.com/wzsyyh/paper-to-beamer)
                 
                 二次开发时需要提及本仓库。用于商业用途的二次开发需要联系原作者获得授权。
                 """)

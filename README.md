@@ -31,7 +31,7 @@ Paper-to-Beamer是一个基于人工智能的工具，可以将学术论文PDF�
 1. 克隆仓库
 
 ```bash
-git clone https://github.com/yourusername/paper-to-beamer.git
+git clone https://github.com/wzsyyh/paper-to-beamer.git
 cd paper-to-beamer
 ```
 
@@ -152,7 +152,7 @@ python app.py --test path/to/paper.pdf --revise "请修改标题页，使标题�
 如有问题或建议，请通过以下方式联系：
 
 - 提交GitHub Issue
-- 发送邮件至：your.email@example.com
+- 发送邮件至：yangyuheng@westlake.edu.cn
 
 ## 项目结构
 

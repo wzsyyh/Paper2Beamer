@@ -31,7 +31,7 @@ Paper-to-Beamer is an AI-based tool that automatically converts academic papers 
 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/paper-to-beamer.git
+git clone https://github.com/wzsyyh/paper-to-beamer.git
 cd paper-to-beamer
 ```
 
@@ -150,6 +150,6 @@ This project is licensed under the MIT License. Secondary development must refer
 If you have any questions or suggestions, please contact through:
 
 - Submit GitHub Issues
-- Send emails to: your.email@example.com 
+- Send emails to: yangyuheng@westlake.edu.cn
 
 > **Security Warning**: Never commit `.env` or `env.local` files containing real API keys to public repositories! These files are set to be ignored in `.gitignore`. 
