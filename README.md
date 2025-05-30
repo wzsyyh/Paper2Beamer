@@ -4,6 +4,8 @@
 
 [English Version](./docs/README_EN.md)
 
+![](static/themes/homepage.jpeg)
+
 ## 项目介绍
 
 Paper-to-Beamer是一个基于人工智能的工具，可以将学术论文PDF自动转换为Beamer演示幻灯片。它使用大型语言模型分析论文内容，提取关键信息，并生成结构良好的演示文稿。该工具支持多轮对话修改，让用户能够通过自然语言反馈不断优化生成的幻灯片。
