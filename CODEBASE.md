@@ -1,190 +1,102 @@
-# Paper-to-Beamer 代码库文档
+# 代码库结构与核心模块说明
 
-本文档详细说明了 Paper-to-Beamer 项目的代码结构和各个组件的功能，便于开发者理解和二次开发。
-
-## 项目结构
-
+## 顶层目录结构
 ```
 paper-to-beamer/
-├── app.py                # Gradio Web界面
-├── main.py               # 命令行入口
-├── patch_openai.py       # OpenAI API补丁
-├── modules/              # 核心功能模块
-│   ├── pdf_parser.py            # PDF解析模块
-│   ├── content_processor.py     # 内容处理模块
-│   ├── presentation_planner.py  # 演示计划生成模块
-│   ├── tex_generator.py         # TEX代码生成模块
-│   ├── tex_validator.py         # TEX验证和编译模块
-│   ├── tex_workflow.py          # TEX工作流模块
-│   └── revision_tex_generator.py # 修订版TEX生成模块
-├── static/               # 静态资源
-│   └── themes/           # Beamer主题预览
-├── output/               # 输出目录
-│   ├── raw/              # 原始提取内容
-│   ├── plan/             # 演示计划
-│   └── tex/              # TEX和PDF输出
-└── examples/             # 示例文件
+├── app.py                  # Gradio Web界面主入口
+├── main.py                 # 命令行主入口
+├── down_model.py           # maker-pdf模型下载脚本
+├── requirements.txt        # 依赖包列表
+├── README.md               # 中文说明文档
+├── CODEBASE.md             # 代码结构与开发说明
+├── patch_openai.py         # OpenAI API兼容性补丁
+├── modules/                # 核心功能模块
+├── utils/                  # 工具与辅助模块
+├── output/                 # 所有输出文件目录
+├── static/                 # 静态资源（主题图片等）
+├── examples/               # 示例PDF文件
+├── docs/                   # 英文及开发文档
+└── .gitignore, LICENSE 等
 ```
 
-## 核心模块说明
+---
 
-### 1. PDF解析模块 (`pdf_parser.py`)
+## 主要输出目录
+- `output/images/<session_id>/`：所有自动提取的图片（maker-pdf模型）
+- `output/plan/<session_id>/`：演示计划JSON
+- `output/tex/<session_id>/`：生成的LaTeX/TEX文件及PDF
+- `output/raw/<session_id>/`：原始内容提取结果
 
-负责从PDF文件中提取文本、图像和结构信息。
+---
 
-**主要功能**：
-- 使用PyMuPDF提取PDF页面内容
-- 提取文本和图像
-- 保存提取的内容为JSON格式
+## 依赖与模型
+- **图片提取依赖 [maker-pdf (marker-pdf)](https://modelscope.cn/models/Lixiang/marker-pdf/summary) 深度学习模型**
+- 首次使用前需运行：
+  ```bash
+  pip install modelscope
+  python down_model.py
+  ```
+- 依赖包详见 `requirements.txt`
 
-**主要类和函数**：
-- `extract_pdf_content()`: 提取PDF内容的便捷函数
+---
 
-### 2. 内容处理模块 (`content_processor.py`)
+## modules/ 目录核心模块
+- `raw_extractor.py`  
+  PDF解析与图片提取（基于maker-pdf），所有图片统一保存到 `output/images/<session_id>/`
+- `pdf_parser.py`  
+  统一入口，调用 `raw_extractor` 完成PDF内容提取
+- `content_processor.py`  
+  对原始内容进行结构化、章节、图表等信息处理
+- `presentation_planner.py`  
+  调用大模型分析内容，生成演示计划（JSON），只引用真实存在的图片
+- `tex_generator.py`  
+  生成Beamer/LaTeX代码，图片路径规范
+- `tex_validator.py`  
+  验证/编译LaTeX，检查图片存在性
+- `tex_workflow.py`  
+  协调全流程（计划→TEX→编译→PDF）
+- `revision_tex_generator.py`  
+  支持基于用户反馈的多轮修订
 
-处理从PDF中提取的原始内容，进行结构化和优化。
+---
 
-**主要功能**：
-- 提取论文标题、作者、摘要等基本信息
-- 识别章节结构
-- 提取图表信息
-- 提取参考文献
+## utils/ 目录
+- `pdf_validator.py`  
+  PDF内容提取验证工具等
 
-**主要类和函数**：
-- `ContentProcessor`: 内容处理器类
-- `process_content()`: 处理内容的便捷函数
+---
 
-### 3. 演示计划生成模块 (`presentation_planner.py`)
+## static/themes/
+- 各类Beamer主题预览图片，Web界面可选
 
-根据处理后的内容生成演示幻灯片计划。
+---
 
-**主要功能**：
-- 确定演示文稿的整体结构
-- 规划每张幻灯片的内容
-- 选择重要图表
-- 支持与用户交互，优化演示计划
+## 主要使用流程
+1. 安装依赖  
+   `pip install -r requirements.txt`
+2. 下载maker-pdf模型  
+   `pip install modelscope`  
+   `python down_model.py`
+3. 运行主程序  
+   - Web界面：`python app.py`
+   - 命令行：`python main.py your_paper.pdf`
+4. 所有图片、计划、TEX、PDF等输出均在 `output/` 目录下，图片路径全程规范一致
 
-**主要类和函数**：
-- `PresentationPlanner`: 演示计划生成器类
-- `generate_presentation_plan()`: 生成演示计划的便捷函数
-- `continue_conversation()`: 处理用户反馈，更新演示计划
+---
 
-### 4. TEX生成模块 (`tex_generator.py`)
+## 开发与二次开发建议
+- **Prompt优化**：如需调整内容提取/幻灯片规划效果，可修改 `modules/presentation_planner.py` 中的相关Prompt
+- **主题扩展**：在 `static/themes/` 目录添加主题图片即可
+- **图片处理/模型升级**：可在 `raw_extractor.py` 中集成新模型或优化图片筛选逻辑
 
-将演示计划转换为完整的Beamer TEX代码。
+---
 
-**主要功能**：
-- 生成完整的Beamer TEX代码
-- 处理图片引用
-- 支持多种Beamer主题
-- 支持中英文演示文稿
+## 注意事项
+- 所有图片只保存在 `output/images/<session_id>/`，后续所有流程均直接引用该目录
+- 若图片未能正确提取，请确认maker-pdf模型已下载且 `models/` 目录存在
+- LLM相关功能需配置 `OPENAI_API_KEY` 到 `.env`
+- 复杂公式、特殊PDF结构可能需手动微调TEX
 
-**主要类和函数**：
-- `TexGenerator`: TEX生成器类
-- `generate_tex()`: 生成TEX代码的便捷函数
+---
 
-### 5. TEX验证和编译模块 (`tex_validator.py`)
-
-验证和编译生成的TEX代码，确保可以正确生成PDF。
-
-**主要功能**：
-- 验证TEX代码语法
-- 编译TEX代码生成PDF
-- 处理编译错误
-- 修复常见问题
-
-**主要类和函数**：
-- `TexValidator`: TEX验证器类
-- `validate()`: 验证并编译TEX代码
-- `fix_tex_code()`: 修复TEX代码中的错误
-
-### 6. TEX工作流模块 (`tex_workflow.py`)
-
-协调整个TEX生成和编译过程。
-
-**主要功能**：
-- 管理从演示计划到PDF的完整流程
-- 处理图片复制和预处理
-- 支持多次重试编译
-- 支持修订版TEX的生成和编译
-
-**主要类和函数**：
-- `TexWorkflow`: TEX工作流类
-- `run_tex_workflow()`: 运行TEX工作流的便捷函数
-- `run_revision_tex_workflow()`: 运行修订版TEX工作流
-
-### 7. 修订版TEX生成模块 (`revision_tex_generator.py`)
-
-基于用户反馈修改演示文稿。
-
-**主要功能**：
-- 根据用户反馈修改TEX代码
-- 保持原有演示文稿的结构和风格
-- 支持多轮修订
-
-**主要类和函数**：
-- `RevisionTexGenerator`: 修订版TEX生成器类
-- `generate_revised_tex()`: 生成修订版TEX代码
-- `save_revised_tex()`: 保存修订版TEX代码
-
-## 入口文件说明
-
-### 1. 命令行入口 (`main.py`)
-
-提供命令行接口，支持批处理和自动化。
-
-**主要功能**：
-- 解析命令行参数
-- 协调整个处理流程
-- 支持交互式优化
-- 支持修订模式
-
-**主要函数**：
-- `main()`: 主函数
-- `interactive_dialog()`: 交互式对话函数
-- `test_with_example()`: 测试函数
-
-### 2. Web界面 (`app.py`)
-
-提供基于Gradio的Web界面，方便用户使用。
-
-**主要功能**：
-- 上传PDF文件
-- 选择语言、模型和主题
-- 显示生成结果
-- 支持多轮对话修改
-
-**主要函数**：
-- `create_ui()`: 创建Web界面
-- `process_pdf()`: 处理PDF文件
-- `revise_presentation()`: 修订演示文稿
-
-## 辅助文件说明
-
-### 1. OpenAI API补丁 (`patch_openai.py`)
-
-修补OpenAI API，处理网络问题和API变更。
-
-**主要功能**：
-- 处理API超时
-- 支持代理设置
-- 兼容不同版本的API
-
-## 二次开发说明
-
-1. **修改提示词**：
-   - 如需调整生成的演示文稿风格，可修改`tex_generator.py`中的提示模板
-   - 如需调整修订逻辑，可修改`revision_tex_generator.py`中的提示模板
-
-2. **添加新主题**：
-   - 在`static/themes`目录中添加新主题的预览图
-   - 在`app.py`中的`AVAILABLE_THEMES`列表中添加新主题
-
-3. **扩展功能**：
-   - 添加新的内容处理逻辑可修改`content_processor.py`
-   - 添加新的演示计划生成逻辑可修改`presentation_planner.py`
-   - 添加新的TEX生成逻辑可修改`tex_generator.py`
-
-## 版权声明
-
-本代码库采用MIT许可证开源。二次开发时需要提及本仓库。用于商业用途的二次开发需要联系原作者获得授权。 
+如需更详细的开发接口说明或有其他补充需求，请随时告知！ 

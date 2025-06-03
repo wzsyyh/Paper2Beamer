@@ -11,17 +11,19 @@ import shutil
 from typing import Dict, List, Any, Optional, Tuple, Union
 
 class TexValidator:
-    def __init__(self, output_dir: str = "output", language: str = "en"):
+    def __init__(self, output_dir: str = "output", language: str = "en", session_id: str = None):
         """
         初始化 TEX 验证器
         
         Args:
             output_dir: 输出目录，用于存放编译结果
             language: 文档语言，zh为中文，en为英文
+            session_id: 会话ID，必须显式传入，避免动态推断
         """
         self.output_dir = output_dir
         self.language = language
         self.logger = logging.getLogger(__name__)
+        self.session_id = session_id
         
         # 确保输出目录存在
         os.makedirs(output_dir, exist_ok=True)
@@ -90,6 +92,9 @@ class TexValidator:
         tex_dir = os.path.dirname(tex_file)
         tex_basename = os.path.basename(tex_file)
         
+        # 获取session_id
+        session_id = self.session_id
+        
         # 使用临时目录进行编译，避免生成多余的辅助文件
         with tempfile.TemporaryDirectory() as temp_dir:
             # 复制TEX文件到临时目录
@@ -100,18 +105,19 @@ class TexValidator:
             temp_images_dir = os.path.join(temp_dir, "images")
             os.makedirs(temp_images_dir, exist_ok=True)
             
-            # 如果存在images目录，复制到临时目录
-            images_dir = os.path.join(tex_dir, "images")
-            if os.path.exists(images_dir):
+            # 从output/images/{session_id}复制图片到临时目录
+            images_dir = os.path.join("output", "images", session_id)
+            if os.path.exists(images_dir) and os.path.isdir(images_dir):
                 for filename in os.listdir(images_dir):
                     src_file = os.path.join(images_dir, filename)
                     dst_file = os.path.join(temp_images_dir, filename)
                     if os.path.isfile(src_file):
                         shutil.copy2(src_file, dst_file)
+                        self.logger.info(f"复制图片到临时目录: {src_file} -> {dst_file}")
             
-            # 处理TEX代码中的图片引用 - 尝试从原始路径复制图片到images目录
+            # 处理TEX代码中的图片引用
             try:
-                self._process_image_references(tex_file, temp_images_dir)
+                self._process_image_references(temp_tex_file, temp_images_dir)
             except Exception as e:
                 self.logger.warning(f"处理图片引用时出错: {str(e)}")
             
@@ -149,18 +155,6 @@ class TexValidator:
                     
                     # 检查PDF文件是否存在
                     if os.path.exists(temp_pdf_file):
-                        # 创建输出目录中的images目录
-                        output_images_dir = os.path.join(self.output_dir, "images")
-                        os.makedirs(output_images_dir, exist_ok=True)
-                        
-                        # 复制images目录到输出目录
-                        if os.path.exists(temp_images_dir):
-                            for filename in os.listdir(temp_images_dir):
-                                src_file = os.path.join(temp_images_dir, filename)
-                                dst_file = os.path.join(output_images_dir, filename)
-                                if os.path.isfile(src_file):
-                                    shutil.copy2(src_file, dst_file)
-                        
                         # 复制PDF文件到输出目录
                         output_pdf = os.path.join(self.output_dir, pdf_basename)
                         shutil.copy2(temp_pdf_file, output_pdf)
@@ -197,7 +191,7 @@ class TexValidator:
     
     def _process_image_references(self, tex_file: str, images_dir: str):
         """
-        处理TEX文件中的图片引用，复制图片到images目录
+        处理TEX文件中的图片引用，更新图片路径
         
         Args:
             tex_file: TEX文件路径
@@ -211,84 +205,36 @@ class TexValidator:
         pattern = r'\\includegraphics\[.*?\]\{([^}]+)\}'
         matches = re.findall(pattern, tex_content)
         
-        # 获取presentation_plan.json文件路径
-        tex_dir = os.path.dirname(tex_file)
-        project_dir = os.path.abspath(os.path.join(tex_dir, ".."))
-        plan_dirs = [d for d in os.listdir(project_dir) if os.path.isdir(os.path.join(project_dir, d)) and d.startswith("plan")]
+        # 获取session_id
+        session_id = self.session_id
         
-        # 查找所有可能的图片源目录
-        possible_image_dirs = []
+        # 查找图片源目录
+        images_dir = os.path.join("output", "images", session_id)
+        if not os.path.exists(images_dir) or not os.path.isdir(images_dir):
+            self.logger.warning(f"图片目录不存在: {images_dir}")
+            return
         
-        # 1. 查找常规图片目录
-        for root, dirs, files in os.walk(project_dir):
-            if os.path.basename(root) == "images":
-                possible_image_dirs.append(root)
-        
-        # 2. 查找基于会话ID的图片目录
-        images_base_dir = os.path.join(project_dir, "images")
-        if os.path.exists(images_base_dir) and os.path.isdir(images_base_dir):
-            for d in os.listdir(images_base_dir):
-                if d.startswith("session_"):
-                    session_images_dir = os.path.join(images_base_dir, d)
-                    if os.path.isdir(session_images_dir):
-                        possible_image_dirs.append(session_images_dir)
-        
-        # 3. 查找output目录下的images目录
-        output_images_dir = os.path.join(project_dir, "output", "images")
-        if os.path.exists(output_images_dir) and os.path.isdir(output_images_dir):
-            possible_image_dirs.append(output_images_dir)
-            # 检查会话特定目录
-            for d in os.listdir(output_images_dir):
-                if d.startswith("session_"):
-                    session_images_dir = os.path.join(output_images_dir, d)
-                    if os.path.isdir(session_images_dir):
-                        possible_image_dirs.append(session_images_dir)
-        
-        self.logger.info(f"找到 {len(possible_image_dirs)} 个可能的图片源目录")
+        self.logger.info(f"使用图片目录: {images_dir}")
         
         # 处理每个图片引用
         missing_images = []
         for img_path in matches:
-            # 检查路径是否已经是相对于images的路径
-            if img_path.startswith("images/"):
-                img_filename = os.path.basename(img_path)
-                img_dest_path = os.path.join(images_dir, img_filename)
-                
-                # 如果images目录中已有该文件，直接跳过
-                if os.path.exists(img_dest_path) and os.path.isfile(img_dest_path):
-                    self.logger.info(f"图片已存在: {img_dest_path}")
-                    continue
+            # 提取文件名
+            img_filename = os.path.basename(img_path)
+            
+            # 检查图片是否存在
+            src_file = os.path.join(images_dir, img_filename)
+            if os.path.exists(src_file) and os.path.isfile(src_file):
+                self.logger.info(f"找到图片: {src_file}")
+                # 更新TEX内容中的图片路径
+                new_path = f"images/{img_filename}"
+                tex_content = tex_content.replace(f"{{{img_path}}}", f"{{{new_path}}}")
             else:
-                # 提取文件名
-                img_filename = os.path.basename(img_path)
-                img_dest_path = os.path.join(images_dir, img_filename)
-            
-            # 查找实际图片文件
-            found = False
-            for src_dir in possible_image_dirs:
-                src_file = os.path.join(src_dir, img_filename)
-                if os.path.exists(src_file) and os.path.isfile(src_file):
-                    # 复制到images目录
-                    dst_file = os.path.join(images_dir, img_filename)
-                    shutil.copy2(src_file, dst_file)
-                    self.logger.info(f"复制图片: {src_file} -> {dst_file}")
-                    found = True
-                    break
-            
-            if not found:
-                # 尝试查找完整路径的文件
-                full_path = img_path
-                if os.path.exists(full_path) and os.path.isfile(full_path):
-                    dst_file = os.path.join(images_dir, img_filename)
-                    shutil.copy2(full_path, dst_file)
-                    self.logger.info(f"复制图片: {full_path} -> {dst_file}")
-                else:
-                    self.logger.warning(f"未找到图片: {img_path}")
-                    missing_images.append(img_path)
+                self.logger.warning(f"未找到图片: {img_path}")
+                missing_images.append(img_path)
         
-        # 如果有缺失的图片，创建占位图形并修改TEX内容
+        # 如果有缺失的图片，创建占位图形
         if missing_images:
-            modified_tex_content = tex_content
             for img_path in missing_images:
                 img_filename = os.path.basename(img_path)
                 
@@ -296,24 +242,15 @@ class TexValidator:
                 placeholder_path = os.path.join(images_dir, f"placeholder_{img_filename}.png")
                 self._create_placeholder_image(placeholder_path)
                 
-                # 修改TEX内容，将缺失的图片替换为占位图形
-                old_pattern = f"\\includegraphics[{{{img_path}}}]"
-                new_pattern = f"\\includegraphics[{{images/placeholder_{img_filename}.png}}]"
-                modified_tex_content = modified_tex_content.replace(f"{{{img_path}}}", f"{{images/placeholder_{img_filename}.png}}")
+                # 更新TEX内容中的图片路径
+                new_path = f"images/placeholder_{img_filename}.png"
+                tex_content = tex_content.replace(f"{{{img_path}}}", f"{{{new_path}}}")
                 
-                self.logger.info(f"已替换缺失图片 {img_path} 为占位图形 placeholder_{img_filename}.png")
-        else:
-            # 如果没有缺失图片，仍然修改TEX文件中的图片路径
-            modified_tex_content = tex_content
-            for img_path in matches:
-                if not img_path.startswith("images/"):
-                    img_filename = os.path.basename(img_path)
-                    new_path = f"images/{img_filename}"
-                    modified_tex_content = modified_tex_content.replace(f"{{{img_path}}}", f"{{{new_path}}}")
+                self.logger.info(f"已替换缺失图片 {img_path} 为占位图形 {new_path}")
         
         # 保存修改后的TEX文件
         with open(tex_file, 'w', encoding='utf-8') as f:
-            f.write(modified_tex_content)
+            f.write(tex_content)
     
     def _create_placeholder_image(self, output_path, width=400, height=300):
         """
@@ -494,7 +431,7 @@ class TexValidator:
 
 
 # 便捷函数
-def validate_tex(tex_file: str, output_dir: str = "output", language: str = "en") -> Tuple[bool, str, Optional[str]]:
+def validate_tex(tex_file: str, output_dir: str = "output", language: str = "en", session_id: str = None) -> Tuple[bool, str, Optional[str]]:
     """
     验证TEX文件能否成功编译（便捷函数）
     
@@ -502,9 +439,10 @@ def validate_tex(tex_file: str, output_dir: str = "output", language: str = "en"
         tex_file: TEX文件路径
         output_dir: 输出目录
         language: 文档语言，zh为中文，en为英文
-        
+        session_id: 会话ID
+    
     Returns:
         Tuple[bool, str, Optional[str]]: (是否成功, 错误信息或成功信息, 生成的PDF路径)
     """
-    validator = TexValidator(output_dir=output_dir, language=language)
+    validator = TexValidator(output_dir=output_dir, language=language, session_id=session_id)
     return validator.validate(tex_file) 

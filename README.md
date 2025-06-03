@@ -12,7 +12,7 @@ Paper-to-Beamer是一个基于人工智能的工具，可以将学术论文PDF�
 
 ### 主要功能
 
-- **PDF内容提取**：自动从PDF中提取文本、图像和结构信息
+- **PDF内容提取**：自动从PDF中提取文本、图像和结构信息（基于maker-pdf深度学习模型）
 - **智能内容分析**：识别论文的标题、作者、摘要、章节结构和关键图表
 - **演示计划生成**：根据论文内容生成结构化的演示计划
 - **Beamer代码生成**：生成完整的LaTeX Beamer代码
@@ -52,7 +52,19 @@ venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 ```
 
-4. 设置OpenAI API密钥
+4. 下载maker-pdf模型（首次使用前必须完成！）
+
+```bash
+pip install modelscope
+python down_model.py
+```
+> `down_model.py`内容如下：
+> ```python
+> from modelscope import snapshot_download
+> snapshot_download('Lixiang/marker-pdf', local_dir='models')
+> ```
+
+5. 设置OpenAI API密钥
 
 创建`.env`文件，添加以下内容：
 
@@ -120,26 +132,14 @@ python main.py --revise --original-plan=path/to/plan.json --previous-tex=path/to
 python app.py --test path/to/paper.pdf --revise "请修改标题页，使标题居中显示"
 ```
 
+## 路径规范说明
+- **所有图片只保存在** `output/images/会话号/`，plan/tex等文件中的图片路径统一为 `output/images/会话号/图片名`，后续所有流程均直接引用该目录下的图片，无需复制或移动。
+
 ## 常见问题
-
-### 1. 编译失败
-
-如果遇到编译失败，请检查：
-- 是否安装了完整的LaTeX环境
-- 是否安装了中文字体（如果生成中文演示文稿）
-- 是否有足够的磁盘空间
-
-### 2. 图片显示问题
-
-如果图片无法正确显示：
-- 确保PDF中的图片质量足够好
-- 尝试使用不同的Beamer主题
-
-### 3. API密钥问题
-
-如果遇到API密钥相关错误：
-- 确保API密钥正确设置
-- 检查API密钥是否有足够的配额
+- **图片未能正确提取/找不到图片？**
+  - 请确认已下载maker-pdf模型，并确保 `output/images/会话号/` 下有图片文件。
+- **API密钥未配置？**
+  - 请在 `.env` 文件中填写 `OPENAI_API_KEY`。
 
 ## 二次开发
 
@@ -210,63 +210,3 @@ pip install -U gradio openai langchain
 - 解析效果可能因PDF格式和结构而异
 - 对于复杂的数学公式，可能需要手动调整
 - 确保OpenAI API密钥有效且配额充足
-
-## 给同伴的指南：如何修改Prompt优化幻灯片生成效果
-
-如果你想尝试不同的prompt来改进生成的幻灯片内容，可以按照以下步骤操作：
-
-### 修改位置
-
-在项目中有两个关键的prompt可以修改，它们都位于 `modules/presentation_planner.py` 文件中：
-
-1. **内容提取Prompt** - 大约在第300行附近
-   - 这个prompt负责从论文中提取关键内容，包括贡献点、方法论、结果和图表信息
-   - 修改这个prompt可以改进对论文内容的理解和提取质量
-
-2. **幻灯片规划Prompt** - 大约在第430行附近
-   - 这个prompt负责规划演示幻灯片的结构和内容
-   - 修改这个prompt可以改进幻灯片的内容丰富度、结构和图片使用
-
-### 修改建议
-
-#### 内容提取Prompt修改建议
-
-- 增加对方法论部分的详细提取要求，比如细分为"问题定义"、"算法设计"、"实现细节"等
-- 要求提取更多的结果数据点，比如具体的实验结果数字、比较数据等
-- 增加对图表的上下文理解，要求模型解释每个图表在论文中的作用和意义
-
-#### 幻灯片规划Prompt修改建议
-
-- 调整幻灯片数量和分布，比如增加方法部分的幻灯片比例
-- 增加每个幻灯片要点的数量和具体程度
-- 提供更具体的图片使用指导，比如什么类型的内容应该配图
-- 要求生成更具体的内容而非泛泛而谈的要点
-- 增加对专业术语和公式的处理指导
-
-### 运行测试
-
-修改prompt后，可以通过以下命令运行测试：
-
-```bash
-python app.py --test
-```
-
-或者使用Web界面：
-
-```bash
-python app.py
-```
-
-然后在浏览器中访问 http://localhost:7860 进行测试。
-
-### 评估效果
-
-评估生成的幻灯片质量时，可以关注以下几点：
-
-1. 内容的完整性和准确性
-2. 幻灯片结构的合理性
-3. 图片与内容的相关性
-4. 要点的具体程度和信息量
-5. 整体演示的逻辑流程
-
-如果你发现某个prompt效果特别好，请记录下来并分享给团队！

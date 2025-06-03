@@ -96,12 +96,14 @@ def process_pdf(pdf_file, language="zh", model_name="gpt-4o", theme="Madrid", ma
     session_id = f"{int(time.time())}"
     logs = []
     
-    # 创建各阶段输出目录
+    # 创建输出目录
     raw_dir = os.path.join("output", "raw", session_id)
     plan_dir = os.path.join("output", "plan", session_id)
     tex_dir = os.path.join("output", "tex", session_id)
+    img_dir = os.path.join("output", "images", session_id)
     
-    for dir_path in [raw_dir, plan_dir, tex_dir]:
+    # 创建目录
+    for dir_path in [raw_dir, plan_dir, tex_dir, img_dir]:
         os.makedirs(dir_path, exist_ok=True)
     
     try:

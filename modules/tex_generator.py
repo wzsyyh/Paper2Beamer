@@ -191,6 +191,9 @@ class TexGenerator:
         Args:
             slides_plan: 幻灯片计划列表
         """
+        # 获取session_id
+        session_id = os.path.basename(os.path.dirname(self.presentation_plan_path))
+        
         for slide in slides_plan:
             if slide.get("includes_figure") and slide.get("figure_reference"):
                 fig_ref = slide.get("figure_reference")
@@ -203,7 +206,7 @@ class TexGenerator:
                     
                     # 检查文件是否存在
                     if "filename" in fig_ref:
-                        images_dir = os.path.join(self.output_dir, "images")
+                        images_dir = os.path.join("output", "images", session_id)
                         img_path = os.path.join(images_dir, fig_ref["filename"])
                         if not os.path.exists(img_path):
                             self.logger.warning(f"警告：图片文件不存在: {img_path}")

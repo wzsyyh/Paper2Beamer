@@ -85,10 +85,12 @@ class TexWorkflow:
             language=self.language,
             theme=self.theme
         )
-        
+        # 获取 session_id
+        session_id = os.path.basename(self.output_dir)
         self.tex_validator = TexValidator(
             output_dir=self.output_dir,
-            language=self.language
+            language=self.language,
+            session_id=session_id
         )
     
     def process(self) -> Tuple[bool, str, Optional[str]]:
@@ -194,6 +196,9 @@ class TexWorkflow:
         """
         slides = presentation_plan.get("slides_plan", [])
         
+        # 获取session_id
+        session_id = os.path.basename(os.path.dirname(self.presentation_plan_path))
+        
         # 为所有幻灯片上的图片引用创建占位图像
         for slide in slides:
             if not slide.get("includes_figure", False):
@@ -211,58 +216,28 @@ class TexWorkflow:
             # 查找图片文件
             found = False
             
-            # 检查绝对路径
-            if os.path.isabs(src) and os.path.exists(src):
-                found = True
-                
-                # 复制到输出目录的images子目录
-                images_dir = os.path.join(self.output_dir, "images")
-                os.makedirs(images_dir, exist_ok=True)
-                
+            # 检查images目录
+            images_dir = os.path.join("output", "images", session_id)
+            if os.path.exists(images_dir) and os.path.isdir(images_dir):
+                # 从路径中提取文件名
                 filename = os.path.basename(src)
-                dst = os.path.join(images_dir, filename)
-                
-                try:
-                    shutil.copy2(src, dst)
-                    self.logger.info(f"复制图片: {src} -> {dst}")
+                if not filename:
+                    continue
                     
+                src_path = os.path.join(images_dir, filename)
+                
+                if os.path.exists(src_path) and os.path.isfile(src_path):
+                    found = True
                     # 更新图片路径
                     fig_ref["path"] = f"images/{filename}"
-                except Exception as e:
-                    self.logger.warning(f"复制图片失败: {str(e)}")
-                    found = False
+                    self.logger.info(f"找到图片: {src_path}")
             
-            # 检查相对于原始计划的路径
-            if not found:
-                plan_dir = os.path.dirname(self.presentation_plan_path)
-                rel_path = os.path.join(plan_dir, src)
-                
-                if os.path.exists(rel_path):
-                    found = True
-                    
-                    # 复制到输出目录的images子目录
-                    images_dir = os.path.join(self.output_dir, "images")
-                    os.makedirs(images_dir, exist_ok=True)
-                    
-                    filename = os.path.basename(rel_path)
-                    dst = os.path.join(images_dir, filename)
-                    
-                    try:
-                        shutil.copy2(rel_path, dst)
-                        self.logger.info(f"复制图片: {rel_path} -> {dst}")
-                        
-                        # 更新图片路径
-                        fig_ref["path"] = f"images/{filename}"
-                    except Exception as e:
-                        self.logger.warning(f"复制图片失败: {str(e)}")
-                        found = False
-                        
             # 如果图片未找到，创建占位图
             if not found:
                 self.logger.warning(f"未找到图片: {src}")
                 
                 # 创建占位图像
-                images_dir = os.path.join(self.output_dir, "images")
+                images_dir = os.path.join("output", "images", session_id)
                 os.makedirs(images_dir, exist_ok=True)
                 
                 # 生成占位图文件名
@@ -311,13 +286,10 @@ class TexWorkflow:
                     image.save(placeholder_path)
                     self.logger.info(f"已创建占位图像: {placeholder_path}")
                     
-                    # 更新图片引用
+                    # 更新图片路径
                     fig_ref["path"] = f"images/{placeholder_name}"
-                    fig_ref["filename"] = placeholder_name
-                    fig_ref["is_placeholder"] = True
-                    
                 except Exception as e:
-                    self.logger.error(f"创建占位图像时出错: {str(e)}")
+                    self.logger.error(f"创建占位图像失败: {str(e)}")
                     # 如果创建占位图失败，删除图片引用
                     slide["includes_figure"] = False
                     slide["figure_reference"] = None

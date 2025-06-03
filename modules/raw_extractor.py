@@ -12,6 +12,10 @@ from PIL import Image
 import hashlib
 from datetime import datetime
 import time
+from marker.converters.pdf import PdfConverter
+from marker.models import create_model_dict
+from marker.output import text_from_rendered
+from surya.settings import settings
 
 class RawExtractor:
     def __init__(self, pdf_path, output_dir="output"):
@@ -26,10 +30,10 @@ class RawExtractor:
         self.output_dir = output_dir
         
         # 使用时间戳创建唯一的会话ID
-        self.session_id = f"session_{int(time.time())}"
+        self.session_id = f"{int(time.time())}"
         
         # 创建会话特定的图片目录
-        self.img_dir = os.path.join(output_dir, "images", self.session_id)
+        self.img_dir = os.path.join("output", "images", self.session_id)
         self.doc = None
         self.plumber_doc = None
         
@@ -252,7 +256,84 @@ class RawExtractor:
             processed_dict["blocks"].append(processed_block)
         
         return processed_dict
+    def extract_image_info_from_directory(self, img_dir):
+        """
+        从图片目录中提取图片信息
+
+        Args:
+            img_dir (str): 图片目录路径
+        
+        Returns:
+            list: 图片信息列表，每个元素是一个字典，包含图片的相关信息
+        """
+        image_info_list = []
+        image_hashes = set()  # 用于去重
     
+        # 支持的图片格式
+        valid_extensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff"}
+        
+        # 遍历图片目录
+        for root, _, files in os.walk(img_dir):
+            for file in files:
+                # 获取文件扩展名
+                file_ext = os.path.splitext(file)[1].lower()
+                
+                # 检查是否是支持的图片格式
+                if file_ext not in valid_extensions:
+                    continue
+                    
+                file_path = os.path.join(root, file)
+                
+                try:
+                    # 打开图片
+                    match = re.search(r'_page_(\d+)_', file)
+                    if match:
+                        page_num = int(match.group(1))
+                    else:
+                        page_num = None  # 如果没有匹配到页码，则设置为 None
+                    with Image.open(file_path) as img:
+                        # 获取图片基本信息
+                        width, height = img.size
+                        image_bytes = img.tobytes()
+                        
+                        # 计算图像哈希以去重
+                        img_hash = hashlib.md5(image_bytes).hexdigest()
+                        
+                        # 检查是否为重复图像
+                        if img_hash in image_hashes:
+                            continue
+                            
+                        image_hashes.add(img_hash)
+                        
+                        # 筛选掉太小的图像（可能是图标或装饰）
+                        if width < 100 or height < 100:
+                            print(f"跳过小图像: {file}, 尺寸 {width}x{height}")
+                            continue
+                        
+                        # 计算图片重要性（基于尺寸）
+                        # 这里可以根据需要添加其他重要性计算逻辑
+                        importance = (width * height) / (1920 * 1080)  # 假设以1920x1080为基准
+                        
+                        # 记录图像信息
+                        image_info = {
+                            "filename": file,
+                            "path": file_path,
+                            "page": page_num + 1,
+                            "width": width,
+                            "height": height,
+                            "type": "file",
+                            "hash": img_hash,
+                            "importance": importance,
+                            "is_chart": self._is_likely_chart(image_bytes, width, height)  # 需要根据实际情况实现_is_likely_chart方法
+                        }
+                        
+                        image_info_list.append(image_info)
+                        
+                except Exception as e:
+                    self.logger.warning(f"处理图片 {file} 时发生错误: {str(e)}")
+        
+        return image_info_list
+
     def extract_images(self):
         """
         提取PDF中的图片
@@ -260,100 +341,36 @@ class RawExtractor:
         Returns:
             list: 图片信息列表
         """
-        images = []
-        image_hashes = set()  # 用于去重
         
-        # 创建临时筛选图片的列表
-        candidate_images = []
         
-        # 遍历所有页面提取图片
-        for page_num in range(len(self.doc)):
-            page = self.doc[page_num]
-            
-            # 1. 从PyMuPDF提取图像
-            try:
-                # 获取页面上的图像对象
-                image_list = page.get_images(full=True)
-                
-                # 对于当前页面上的每个图像
-                for img_idx, img in enumerate(image_list):
-                    try:
-                        xref = img[0]  # 图像的xref
-                        base_image = self.doc.extract_image(xref)
-                        
-                        if base_image:
-                            image_bytes = base_image["image"]
-                            
-                            # 计算图像哈希以去重
-                            img_hash = hashlib.md5(image_bytes).hexdigest()
-                            
-                            # 检查是否为重复图像
-                            if img_hash in image_hashes:
-                                continue
-                                
-                            image_hashes.add(img_hash)
-                            
-                            # 图像信息
-                            image_ext = base_image["ext"]
-                            width = base_image.get("width", 0)
-                            height = base_image.get("height", 0)
-                            
-                            # 筛选掉太小的图像（可能是图标或装饰）
-                            if width < 100 or height < 100:
-                                self.logger.info(f"跳过小图像: 页码 {page_num+1}, 尺寸 {width}x{height}")
-                                continue
-                            
-                            # 生成图像文件名
-                            image_filename = f"image_p{page_num+1}_{img_idx+1}.{image_ext}"
-                            image_path = os.path.join(self.img_dir, image_filename)
-                            
-                            # 保存图像到文件
-                            with open(image_path, "wb") as f:
-                                f.write(image_bytes)
-                            
-                            # 获取图像的位置信息
-                            try:
-                                bbox = page.get_image_bbox(xref)
-                                bbox_info = [bbox.x0, bbox.y0, bbox.x1, bbox.y1] if bbox else []
-                            except:
-                                bbox_info = []
-                            
-                            # 图像的重要性估计（基于尺寸和位置）
-                            importance = 0
-                            
-                            # 基于尺寸的重要性 - 更大的图像通常更重要
-                            size_importance = (width * height) / (page.rect.width * page.rect.height)
-                            importance += size_importance * 50
-                            
-                            # 基于位置的重要性 - 页面中间的图像通常更重要
-                            if bbox_info:
-                                center_x = (bbox_info[0] + bbox_info[2]) / 2
-                                center_y = (bbox_info[1] + bbox_info[3]) / 2
-                                distance_from_center = ((center_x - page.rect.width/2)**2 + 
-                                                      (center_y - page.rect.height/2)**2)**0.5
-                                position_importance = 1 - (distance_from_center / 
-                                                        ((page.rect.width/2)**2 + (page.rect.height/2)**2)**0.5)
-                                importance += position_importance * 30
-                            
-                            # 记录图像信息
-                            image_info = {
-                                "filename": image_filename,
-                                "path": image_path,
-                                "page": page_num + 1,
-                                "bbox": bbox_info,
-                                "width": width,
-                                "height": height,
-                                "type": "embedded",
-                                "hash": img_hash,
-                                "importance": importance,
-                                "is_chart": self._is_likely_chart(image_bytes, width, height)
-                            }
-                            
-                            candidate_images.append(image_info)
-                    except Exception as e:
-                        self.logger.warning(f"提取图像时发生错误: {str(e)}")
-            except Exception as e:
-                self.logger.warning(f"提取页面 {page_num+1} 图像时发生错误: {str(e)}")
+        self.logger.info("load model")
+        model_root = "models"
+        settings.MODEL_CACHE_DIR = model_root
+        for chectpoint in [
+            "LAYOUT_MODEL_CHECKPOINT",
+            "DETECTOR_MODEL_CHECKPOINT",
+            "OCR_ERROR_MODEL_CHECKPOINT",
+            "TABLE_REC_MODEL_CHECKPOINT",
+            "RECOGNITION_MODEL_CHECKPOINT",
+        ]:
+            value = getattr(settings, chectpoint)
+            if "s3://" in value:
+                value = value.replace("s3://", "/")
+                setattr(settings, chectpoint, model_root + value)
+        converter = PdfConverter(
+            artifact_dict=create_model_dict(),
+        )
+        self.logger.info("end load")
+
+        rendered = converter(self.pdf_path)
+        # text = rendered.markdown
+        text, _, images = text_from_rendered(rendered)
+        output_path = self.img_dir
+        for filename, image in images.items():
+            image_filepath = os.path.join(output_path, filename)
+            image.save(image_filepath, "JPEG")
+
+        candidate_images = self.extract_image_info_from_directory(self.img_dir)
         
         # 按重要性排序图像
         candidate_images.sort(key=lambda x: x.get("importance", 0), reverse=True)

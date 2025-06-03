@@ -68,6 +68,16 @@ class PresentationPlanner:
         self.key_content = {}
         self.slides_plan = []
         self.presentation_plan = {}
+        
+        # 新增：获取session_id和images目录下所有图片，并建立id到文件名映射
+        self.session_id = os.path.basename(os.path.dirname(self.raw_content_path))
+        self.images_dir = os.path.join("output", "images", self.session_id)
+        if os.path.exists(self.images_dir):
+            self.available_images = sorted(os.listdir(self.images_dir))
+        else:
+            self.available_images = []
+        # 建立 fig0, fig1, ... 到真实文件名的映射
+        self.id_to_filename = {f"fig{i}": fname for i, fname in enumerate(self.available_images)}
     
     def _load_raw_content(self) -> Dict[str, Any]:
         """加载原始内容"""
@@ -395,17 +405,16 @@ class PresentationPlanner:
             except json.JSONDecodeError as e:
                 self.logger.error(f"解析关键内容JSON时出错: {str(e)}")
             
-            # 改进图表信息匹配逻辑
-            for fig in key_content.get("figures", []):
-                # 优先使用ID进行精确匹配
-                if "id" in fig:
-                    fig_id = fig["id"]
-                    for img_info in images_info:
-                        if img_info.get("id") == fig_id:
-                            fig["path"] = img_info.get("path", "")
-                            fig["page"] = img_info.get("page", 0)
-                            fig["group_size"] = img_info.get("group_size", 1)
-                            break
+            # 改进图表信息匹配逻辑，直接用真实图片名和路径
+            for idx, fig in enumerate(key_content.get("figures", [])):
+                fig_id = f"fig{idx}"
+                if fig_id in self.id_to_filename:
+                    filename = self.id_to_filename[fig_id]
+                    fig["id"] = fig_id
+                    fig["filename"] = filename
+                    fig["path"] = os.path.join("output", "images", self.session_id, filename)
+                else:
+                    self.logger.warning(f"图片ID未找到真实图片，已忽略: {fig_id}")
             
         except Exception as e:
             self.logger.error(f"提取关键内容时出错: {str(e)}")
@@ -430,8 +439,8 @@ class PresentationPlanner:
         # 按页面分组
         images_by_page = {}
         for img in images:
-            # 只考虑嵌入式图片
-            if img.get("type") != "embedded":
+            # 修改图片类型判断
+            if img.get("type") not in ["file", "page_render"]:
                 continue
                 
             # 确保图片有路径信息
@@ -752,54 +761,26 @@ class PresentationPlanner:
             # 尝试解析JSON
             slides_plan = json.loads(json_str)
             
-            # 改进图表引用逻辑
+            # 改进图表引用逻辑，幻灯片只允许引用真实图片
             figures = key_content.get("figures", [])
-            
-            # 创建图片ID到图片信息的映射
-            figures_by_id = {}
-            for fig in figures:
-                if "id" in fig:
-                    figures_by_id[fig["id"]] = fig
-            
-            # 处理幻灯片中的图片引用
+            figures_by_id = {fig["id"]: fig for fig in figures if "id" in fig}
             for slide in slides_plan:
                 if slide.get("includes_figure") and slide.get("figure_reference"):
                     fig_ref = slide.get("figure_reference")
-                    
-                    # 优先使用ID匹配
                     if fig_ref and "id" in fig_ref:
                         fig_id = fig_ref.get("id")
                         if fig_id in figures_by_id:
                             matched_fig = figures_by_id[fig_id]
-                            fig_ref.update({
-                                "filename": matched_fig.get("filename", ""),
-                                "path": matched_fig.get("path", "")
-                            })
-                            continue
-                    
-                    # 如果没有ID匹配成功，尝试使用页码匹配
-                    if fig_ref and "page" in fig_ref:
-                        page_num = fig_ref.get("page")
-                        # 先尝试匹配已知的图片引用
-                        matched = False
-                        for fig in figures:
-                            if fig.get("page") == page_num and "path" in fig:
-                                fig_ref.update({
-                                    "filename": fig.get("filename", ""),
-                                    "path": fig.get("path", "")
-                                })
-                                matched = True
-                                break
-                        
-                        # 如果没有匹配到，尝试从raw_content中的images直接查找
-                        if not matched and self.raw_content and "images" in self.raw_content:
-                            for img in self.raw_content["images"]:
-                                if img.get("page") == page_num and img.get("type") == "embedded":
-                                    fig_ref.update({
-                                        "filename": img.get("filename", ""),
-                                        "path": img.get("path", "")
-                                })
-                                break
+                            filename = matched_fig.get("filename", "")
+                            if filename:
+                                fig_ref["filename"] = filename
+                                fig_ref["path"] = os.path.join("output", "images", self.session_id, filename)
+                            else:
+                                self.logger.warning(f"幻灯片图片ID未找到真实图片: {fig_id}")
+                        else:
+                            self.logger.warning(f"幻灯片图片ID未找到真实图片: {fig_id}")
+                    else:
+                        self.logger.warning(f"幻灯片图片figure_reference缺少id字段: {fig_ref}")
         
         except Exception as e:
             self.logger.error(f"规划幻灯片时出错: {str(e)}")

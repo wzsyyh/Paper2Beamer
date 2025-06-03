@@ -1,21 +1,34 @@
+# 基础依赖
+openai>=1.0.0
+langchain>=0.1.0
+python-dotenv
+
+# PDF与图片处理
+PyMuPDF
+pdf2image
+Pillow
+opencv-python
+
+# 图片结构化与OCR
+layoutparser
+paddleocr
+paddlepaddle
+
+# 其他
+requests
+
 # PDF处理
-PyMuPDF==1.23.10
 pdfplumber==0.10.3
-pdf2image==1.17.0
 pytesseract==0.3.10
 
 # 语言模型 - 更新版本
-langchain>=0.2.0
 langchain-core>=0.3.61
 langchain-openai>=0.3.18
-openai>=1.68.2
 
 # 图形和数据处理
 matplotlib==3.8.3
-Pillow==10.2.0  # 用于图像处理和分析
 numpy==1.26.4
 
 # 其他工具
 tqdm==4.66.1
-python-dotenv==1.0.0
 gradio>=4.44.0  # 升级到最新版本 
