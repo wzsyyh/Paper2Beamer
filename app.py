@@ -169,13 +169,13 @@ def process_pdf(pdf_file, language="zh", model_name="gpt-4o", theme="Madrid", ma
             logger.info(log_message)
             logs.append(log_message)
             
-            log_message = f"生成的PDF文件: {pdf_path}"
+            # 转换为绝对路径
+            abs_pdf_path = os.path.abspath(pdf_path)
+            log_message = f"生成的PDF文件: {abs_pdf_path}"
             logger.info(log_message)
             logs.append(log_message)
             
-            # 不再清理临时图片文件，保留它们以便后续修订使用
-            
-            return "成功：幻灯片生成完成", pdf_path, logs, session_id
+            return "成功：幻灯片生成完成", abs_pdf_path, logs, session_id
         else:
             log_message = f"TEX生成和编译失败: {message}"
             logger.error(log_message)
@@ -184,8 +184,9 @@ def process_pdf(pdf_file, language="zh", model_name="gpt-4o", theme="Madrid", ma
             # 即使编译失败，也返回生成的TEX文件，以便用户查看
             tex_file = os.path.join(tex_dir, "output.tex")
             if os.path.exists(tex_file):
-                logs.append(f"TEX文件已生成，您可以手动编译: {tex_file}")
-                return "部分成功：TEX文件已生成，但编译失败", tex_file, logs, session_id
+                abs_tex_path = os.path.abspath(tex_file)
+                logs.append(f"TEX文件已生成，您可以手动编译: {abs_tex_path}")
+                return "部分成功：TEX文件已生成，但编译失败", abs_tex_path, logs, session_id
             else:
                 return "错误：TEX文件生成失败", None, logs, session_id
     
@@ -198,9 +199,7 @@ def process_pdf(pdf_file, language="zh", model_name="gpt-4o", theme="Madrid", ma
         import traceback
         error_stack = traceback.format_exc()
         logger.error(error_stack)
-        logs.append(error_stack)
-        
-        return "错误：处理PDF时出现异常", None, logs, None
+        return f"错误：{str(e)}", None, logs, None
 
 def process_and_return(pdf_file, language, model_name, theme, max_retries):
     """Gradio界面调用的处理函数"""

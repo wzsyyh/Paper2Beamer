@@ -135,18 +135,11 @@ class TexValidator:
                     cmd, 
                     cwd=temp_dir,
                     capture_output=True,
-                    text=False,  # 使用二进制模式
+                    text=True,  # 直接用文本模式，方便日志输出
                     timeout=timeout
                 )
                 
-                # 尝试解码输出，处理可能的编码问题
-                try:
-                    stdout = process.stdout.decode('utf-8')
-                except UnicodeDecodeError:
-                    try:
-                        stdout = process.stdout.decode('latin1')
-                    except UnicodeDecodeError:
-                        stdout = str(process.stdout)
+                stdout = process.stdout
                 
                 # 检查是否编译成功
                 if process.returncode == 0:
@@ -166,6 +159,20 @@ class TexValidator:
                             output_log = os.path.join(self.output_dir, log_basename)
                             shutil.copy2(temp_log_file, output_log)
                         
+                        # 如果PDF存在，尝试再次编译以生成目录
+                        for i in range(2):  # 最多再编译2次
+                            self.logger.info(f"尝试第 {i+2} 次编译以生成目录...")
+                            process = subprocess.run(
+                                cmd, 
+                                cwd=temp_dir,
+                                capture_output=True,
+                                text=True,
+                                timeout=timeout
+                            )
+                            if process.returncode == 0 and os.path.exists(temp_pdf_file):
+                                output_pdf = os.path.join(self.output_dir, pdf_basename)
+                                shutil.copy2(temp_pdf_file, output_pdf)
+                                return True, "编译成功", output_pdf
                         return True, "编译成功", output_pdf
                     else:
                         return False, "编译命令成功执行，但未生成PDF文件", None
@@ -173,7 +180,7 @@ class TexValidator:
                     # 提取错误信息
                     error_message = self._extract_error_message(stdout)
                     if not error_message:
-                        error_message = "未知编译错误，请查看完整日志"
+                        error_message = stdout or "未知编译错误，请查看完整日志"
                     
                     # 保存错误日志
                     log_basename = os.path.splitext(tex_basename)[0] + ".log"

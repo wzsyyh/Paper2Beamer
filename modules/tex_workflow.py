@@ -11,6 +11,7 @@ import glob
 import shutil
 from typing import Dict, List, Any, Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
+import subprocess
 
 # 加载补丁
 from dotenv import load_dotenv
@@ -300,6 +301,51 @@ class TexWorkflow:
                 json.dump(presentation_plan, f, ensure_ascii=False, indent=2)
         except Exception as e:
             self.logger.warning(f"保存更新后的演示计划失败: {str(e)}")
+
+    def _compile_tex(self, tex_path: str) -> bool:
+        """
+        编译TEX文件
+        
+        Args:
+            tex_path: TEX文件路径
+            
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            # 获取TEX文件所在目录和文件名
+            tex_dir = os.path.dirname(tex_path)
+            tex_basename = os.path.basename(tex_path)
+            
+            # 切换到TEX文件所在目录
+            original_dir = os.getcwd()
+            os.chdir(tex_dir)
+            
+            try:
+                # 运行编译命令
+                self.logger.info(f"运行编译命令: pdflatex -interaction=nonstopmode output.tex")
+                result = subprocess.run(
+                    ["pdflatex", "-interaction=nonstopmode", "output.tex"],
+                    cwd=tex_dir,
+                    capture_output=True,
+                    text=True
+                )
+                
+                # 检查编译结果
+                if result.returncode == 0:
+                    self.logger.info("TEX代码验证成功")
+                    return True
+                else:
+                    self.logger.warning(f"TEX代码验证失败: {result.stderr}")
+                    return False
+                
+            finally:
+                # 恢复原来的目录
+                os.chdir(original_dir)
+                
+        except Exception as e:
+            self.logger.error(f"编译TEX文件时出错: {str(e)}")
+            return False
 
     def run(self) -> Tuple[bool, str, Optional[str]]:
         """

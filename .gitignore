@@ -53,6 +53,7 @@ env.local
 output/raw/*
 output/plan/*
 output/tex/*
+output/images/*
 !output/raw/.gitkeep
 !output/plan/.gitkeep
 !output/tex/.gitkeep

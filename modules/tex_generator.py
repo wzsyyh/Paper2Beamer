@@ -134,7 +134,6 @@ class TexGenerator:
             请使用以下宏包支持中文：
             ```latex
             \\usepackage{ctex}
-            \\usepackage{xeCJK}
             ```
             并确保使用UTF-8编码。
             """
