@@ -24,6 +24,17 @@ if os.path.exists(".env"):
 elif os.path.exists("env.local"):
     load_dotenv("env.local")
 
+# LangSmith Tracing 初始化
+# 确保环境变量已设置，并显式初始化，以保证追踪的可靠性
+if os.getenv("LANGCHAIN_TRACING_V2") == "true":
+    try:
+        from langsmith import Client
+        client = Client()
+        logger = logging.getLogger(__name__)
+        logger.info("LangSmith tracing is enabled.")
+    except Exception as e:
+        print(f"Could not initialize LangSmith client: {e}")
+
 # 应用补丁
 patch_openai_client()
 patch_langchain_openai()
@@ -731,4 +742,4 @@ if __name__ == "__main__":
     else:
         # 创建并启动Web界面
         app = create_ui()
-        app.launch(server_name="0.0.0.0") 
+        app.launch(server_name="0.0.0.0")

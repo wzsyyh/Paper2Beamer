@@ -350,7 +350,8 @@ TEX_GENERATION_PROMPT = """
 
 6. **图片与图表**
    - 使用figure环境和\\includegraphics命令插入图片
-   - 设置合适的图片尺寸、位置和caption
+   - **强制性要求**：所有`\\includegraphics`命令都**必须**包含`width=0.8\\textwidth, height=0.6\\textheight, keepaspectratio`参数。这将确保图片的宽度和高度都被限制在合理的范围内，并保持其原始宽高比。这是一个必须严格遵守的规则。
+   - 设置图片位置和caption。
    - 确保图片路径正确（使用figure_reference中的path字段）
    - 对于caption，使用以下优先级：
      - 如果存在original_caption，优先使用

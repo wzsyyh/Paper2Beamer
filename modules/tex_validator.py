@@ -130,7 +130,8 @@ class TexValidator:
                 compiler = "xelatex" if self.language == "zh" else "pdflatex"
                 
                 # 使用-interaction=nonstopmode参数，遇到错误时不会暂停
-                cmd = [compiler, "-interaction=nonstopmode", tex_basename]
+                # 添加 -shell-escape 以支持 minted 等需要执行外部命令的宏包
+                cmd = [compiler, "-shell-escape", "-interaction=nonstopmode", tex_basename]
                 self.logger.info(f"运行编译命令: {' '.join(cmd)}")
                 
                 # 设置工作目录为临时目录
@@ -441,4 +442,4 @@ def validate_tex(tex_file: str, output_dir: str = "output", language: str = "en"
         Tuple[bool, str, Optional[str]]: (是否成功, 错误信息或成功信息, 生成的PDF路径)
     """
     validator = TexValidator(output_dir=output_dir, language=language, session_id=session_id)
-    return validator.validate(tex_file) 
+    return validator.validate(tex_file)
