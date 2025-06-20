@@ -12,6 +12,9 @@ from typing import Dict, List, Any, Optional, Tuple
 from dotenv import load_dotenv
 from patch_openai import patch_langchain_openai, patch_openai_client
 
+# 导入提示词
+from prompts import TEX_REVISION_SYSTEM_MESSAGE, TEX_REVISION_HUMAN_MESSAGE
+
 # 尝试加载环境变量
 if os.path.exists(".env"):
     load_dotenv(".env")
@@ -148,36 +151,17 @@ class RevisionTexGenerator:
         authors = self.original_plan.get("authors", [])
         
         # 构建提示词
-        system_message = f"""你是一位专业的Beamer演示文稿编辑助手，擅长根据用户的需求修改LaTeX Beamer幻灯片。
+        system_message = TEX_REVISION_SYSTEM_MESSAGE.format(
+            title=title,
+            authors=', '.join(authors),
+            theme=self.theme,
+            language='中文' if self.language == 'zh' else '英文'
+        )
 
-当前，你需要根据用户的反馈修改一个已经存在的Beamer演示文稿。我将提供给你：
-1. 原始演示文稿的TEX代码
-2. 用户对该演示文稿的修改建议
-
-请你详细分析用户的反馈，并对TEX代码进行适当的修改，以满足用户的需求。注意保持原有演示文稿的整体风格和结构。
-
-在响应中，请提供：
-1. 完整的修订后的TEX代码
-2. 简要说明你做了哪些修改来满足用户的需求
-
-当前演示文稿信息：
-- 标题: {title}
-- 作者: {', '.join(authors)}
-- 主题: {self.theme}
-- 语言: {'中文' if self.language == 'zh' else '英文'}
-"""
-
-        human_message = f"""
-原始TEX代码：
-```latex
-{self.previous_tex}
-```
-
-用户反馈：
-{user_feedback}
-
-请根据用户反馈修改TEX代码，并提供完整的修订版TEX代码。
-"""
+        human_message = TEX_REVISION_HUMAN_MESSAGE.format(
+            previous_tex=self.previous_tex,
+            user_feedback=user_feedback
+        )
         
         # 构建提示模板
         messages = [

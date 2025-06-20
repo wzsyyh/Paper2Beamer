@@ -10,6 +10,9 @@ import logging
 import shutil
 from typing import Dict, List, Any, Optional, Tuple, Union
 
+# 导入提示词
+from prompts import TEX_ERROR_FIX_PROMPT
+
 class TexValidator:
     def __init__(self, output_dir: str = "output", language: str = "en", session_id: str = None):
         """
@@ -393,21 +396,7 @@ class TexValidator:
                 \\end{{CJK}}
                 """
             
-            prompt = ChatPromptTemplate.from_template("""
-            你是一位专业的LaTeX专家，尤其擅长修复Beamer演示文稿中的错误。请根据以下编译错误信息，修复提供的LaTeX代码：
-
-            ## 编译错误信息：
-            {error_message}
-
-            {font_info}
-
-            ## 当前LaTeX代码：
-            ```latex
-            {tex_code}
-            ```
-
-            请分析错误原因，并提供修复后的完整LaTeX代码。确保修复后的代码能够正确编译。只返回完整的修复后代码，不需要任何解释。
-            """)
+            prompt = ChatPromptTemplate.from_template(TEX_ERROR_FIX_PROMPT)
             
             # 调用LLM
             chain = prompt | model

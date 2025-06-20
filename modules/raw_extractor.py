@@ -370,7 +370,41 @@ class RawExtractor:
             image_filepath = os.path.join(output_path, filename)
             image.save(image_filepath, "JPEG")
 
+        # 从渲染结果中提取图片标题
+        image_captions = {}
+        try:
+            # 尝试从 markdown 文本中提取图片标题
+            markdown_text = rendered.markdown if hasattr(rendered, 'markdown') else ""
+            
+            # 使用正则表达式查找图片引用和标题
+            # 匹配格式如: ![caption text](image_path)
+            import re
+            image_pattern = r'!\[(.*?)\]\((.*?)\)'
+            matches = re.findall(image_pattern, markdown_text)
+            
+            for caption, image_path in matches:
+                if caption.strip() and image_path:
+                    img_filename = os.path.basename(image_path)
+                    # 清理标题文本
+                    clean_caption = caption.strip()
+                    if clean_caption:
+                        image_captions[img_filename] = clean_caption
+                        self.logger.info(f"从Markdown中找到图片标题: {img_filename} -> {clean_caption}")
+            
+            # 如果没有找到标题，尝试其他方法
+            if not image_captions:
+                self.logger.info("未从Markdown中找到图片标题，尝试其他方法...")
+                
+        except Exception as e:
+            self.logger.warning(f"提取图片标题时出错: {str(e)}")
+
         candidate_images = self.extract_image_info_from_directory(self.img_dir)
+
+        # 将提取到的标题添加到图片信息中
+        for img_info in candidate_images:
+            if img_info["filename"] in image_captions:
+                img_info["caption"] = image_captions[img_info["filename"]]
+                self.logger.info(f"为图片 {img_info['filename']} 添加标题: {img_info['caption']}")
         
         # 按重要性排序图像
         candidate_images.sort(key=lambda x: x.get("importance", 0), reverse=True)
@@ -536,4 +570,4 @@ def extract_raw_content(pdf_path, output_dir="output", cleanup_temp=False):
             
         return content, output_file
     
-    return None, None 
+    return None, None

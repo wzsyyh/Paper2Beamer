@@ -13,6 +13,9 @@ from typing import Dict, List, Any, Optional, Tuple
 from dotenv import load_dotenv
 from patch_openai import patch_langchain_openai, patch_openai_client
 
+# 导入提示词
+from prompts import TEX_GENERATION_PROMPT
+
 # 尝试加载环境变量
 if os.path.exists(".env"):
     load_dotenv(".env")
@@ -128,39 +131,9 @@ class TexGenerator:
         
         # 根据语言设置提示
         language_prompt = "请用中文生成" if self.language == "zh" else "Please generate in English"
-        language_specific = ""
-        if self.language == "zh":
-            language_specific = """
-            请使用以下宏包支持中文：
-            ```latex
-            \\usepackage{ctex}
-            ```
-            并确保使用UTF-8编码。
-            """
         
         # 构建提示
-        prompt = ChatPromptTemplate.from_template("""
-        你是一个专业的LaTeX Beamer演示文稿生成专家。{language_prompt}一个基于以下演示计划的完整Beamer演示文稿的LaTeX代码。
-
-        演示计划:
-        ```json
-        {plan}
-        ```
-
-        请生成一个完整的、可编译的LaTeX Beamer代码，包括所有必要的包和设置。使用以下主题：{theme}。
-
-        请确保：
-        1. 代码完整且可直接编译，包括所有必要的包和设置
-        2. 标题页的标题和作者信息居中显示，并使用适当的字体大小
-        3. 为每张幻灯片创建适当的帧，包括标题和内容
-        4. 正确引用图像（如果有），使用适当的尺寸和位置
-        5. 使用清晰的结构，包括章节和小节（如果适用）
-        6. 包含适当的页脚和导航元素
-        7. 使用适当的字体和颜色，确保可读性
-        8. 如果是中文演示文稿，请使用适当的中文支持包和字体设置
-
-        请直接返回完整的LaTeX代码，不需要解释或注释。
-        """)
+        prompt = ChatPromptTemplate.from_template(TEX_GENERATION_PROMPT)
         
         try:
             # 调用LLM生成TEX代码

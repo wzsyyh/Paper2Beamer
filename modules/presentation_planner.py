@@ -23,6 +23,14 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
 
+# 导入提示词
+from prompts import (
+    PAPER_INFO_EXTRACTION_PROMPT,
+    KEY_CONTENT_EXTRACTION_PROMPT, 
+    SLIDES_PLANNING_PROMPT,
+    INTERACTIVE_REFINEMENT_SYSTEM_MESSAGE
+)
+
 class PresentationPlanner:
     def __init__(
         self, 
@@ -179,32 +187,7 @@ class PresentationPlanner:
             # 构建提示
             language_prompt = "请用中文回答" if self.language == "zh" else "Please answer in English"
             
-            prompt = ChatPromptTemplate.from_template("""
-            你是一个专业的学术论文分析助手。请从以下学术论文的前几页文本中提取关键信息。{language_prompt}。
-            
-            请提取以下信息：
-            1. 论文标题
-            2. 作者列表
-            3. 作者单位/机构
-            4. 摘要内容
-            5. 关键词（如果有）
-            
-            请以JSON格式返回，格式如下：
-            ```json
-            {{
-              "title": "论文标题",
-              "authors": ["作者1", "作者2", ...],
-              "affiliations": ["单位1", "单位2", ...],
-              "abstract": "摘要全文",
-              "keywords": ["关键词1", "关键词2", ...]
-            }}
-            ```
-            
-            仅返回JSON对象，不要有任何其他文字。
-            
-            论文文本：
-            {text}
-            """)
+            prompt = ChatPromptTemplate.from_template(PAPER_INFO_EXTRACTION_PROMPT)
             
             # 调用LLM
             chain = prompt | self.llm
@@ -304,14 +287,8 @@ class PresentationPlanner:
                 # 获取组的边界框
                 group_bbox = self._get_group_bbox(group)
                 
-                # 提取图片周围的文本
-                surrounding_text = ""
-                for img in group:
-                    img_page = img.get("page", 0)
-                    if img_page in page_texts:
-                        text = self._extract_surrounding_text(img, page_texts)
-                        if text:
-                            surrounding_text += text + "\n"
+                # 提取图片的精确标题（caption）
+                caption = representative.get("caption", "")
                 
                 # 生成图片信息
                 image_info = {
@@ -322,7 +299,7 @@ class PresentationPlanner:
                     "height": representative.get("height", 0),
                     "bbox": group_bbox,
                     "group_size": len(group),
-                    "surrounding_text": surrounding_text
+                    "caption": caption
                 }
                 
                 images_info.append(image_info)
@@ -330,51 +307,7 @@ class PresentationPlanner:
             # 构建提示
             language_prompt = "请用中文回答" if self.language == "zh" else "Please answer in English"
             
-            prompt = ChatPromptTemplate.from_template("""
-            你是一个专业的学术论文分析助手。{language_prompt}。请从以下学术论文信息中提取关键内容，以便创建演示文稿。
-            
-            论文标题: {title}
-            作者: {authors}
-            摘要: {abstract}
-            
-            {toc_info}
-            
-            请提取以下关键内容：
-            
-            1. 主要贡献点（3-5点简短的要点）
-            2. 方法论概述（简明扼要）
-            3. 主要结果和发现（简明扼要）
-            4. 结论和未来工作（简明扼要）
-            5. 重要图表的解释和意义
-            
-            对于图表，请分析以下信息并提供解释：
-            {figures_info}
-            
-            请以JSON格式返回，格式如下：
-            ```json
-            {{
-              "main_contributions": ["贡献点1", "贡献点2", ...],
-              "methodology": "方法论概述",
-              "results": "主要结果和发现",
-              "figures": [
-                {{
-                  "id": "图片ID",
-                  "title": "推测的图片标题",
-                  "description": "图片的简短描述",
-                  "importance": "图片在论文中的重要性（高/中/低）",
-                  "relevance": "图片与哪个部分最相关（方法/结果/等）",
-                  "caption_length": "建议的标题长度（short/medium/long）"
-                }}
-              ],
-              "conclusions": "结论和未来工作"
-            }}
-            ```
-            
-            仅返回JSON对象，不要有任何其他文字。确保JSON结构严格正确。
-            
-            论文文本：
-            {text}
-            """)
+            prompt = ChatPromptTemplate.from_template(KEY_CONTENT_EXTRACTION_PROMPT)
             
             # 调用LLM
             chain = prompt | self.llm
@@ -664,75 +597,7 @@ class PresentationPlanner:
             
             # 这里是同伴可以修改的第二个prompt位置
             # 提示：修改此处可以改进幻灯片的内容丰富度和结构
-            prompt = ChatPromptTemplate.from_template("""
-            你是一个专业的学术演示设计专家。根据下面提供的论文信息，规划一个Beamer学术演示幻灯片。{language_prompt}。
-            
-            论文信息：
-            - 标题: {title}
-            - 作者: {authors}
-            - 摘要: {abstract}
-            
-            论文关键内容：
-            - 主要贡献: {contributions}
-            - 方法论: {methodology}
-            - 主要结果: {results}
-            - 结论: {conclusions}
-            
-            论文图表信息：
-            {figures_info}
-            
-            首先请你弄清楚这篇文章解决什么问题，如何评价指标，是怎样的实现。这三点事最重要的部分，也是不考虑篇幅、最需要在幻灯片中向观众详细介绍清楚的部分。
-
-            然后，请设计一个20张左右幻灯片的演示文稿，包括以下内容（重要的部分可以多安排几张幻灯片，讲清楚最重要）：
-            1. 标题页和目录页（目录页需要包含后文所有幻灯片的标题，若目录一页放不下可以安排多页）
-            2. 简介/动机（介绍清楚这篇文章解决什么问题，至少用一组输入输出的案例来解释，可以安排1～2张幻灯片）
-            3. 研究背景与挑战（简单介绍）
-            4. 相关工作（简单介绍）
-            5. 研究方法（介绍这篇论文的核心思路、做法，这是最重要的一部分，可以安排3～5张幻灯片）
-            6. 实验设置（介绍评价指标、如何评价，可以安排1～3张幻灯片）
-            7. 结果与分析（简单介绍）
-            8. 结论与未来工作（简单介绍）
-            
-            对于每张幻灯片，请提供：
-            1. 幻灯片标题（简洁明了）
-            2. 幻灯片内容要点（内容要具体而非泛泛而谈）
-            3. 是否包含图表（如果包含，需要给出图表的ID和描述）
-            
-            
-            重要图像使用指南：
-            1. 只选择论文中的重要图表和图像，最多使用5-7个关键图表/图像
-            2. 优先选择显示实验结果、方法框架、关键数据的图表
-            3. 确保每个图表都与幻灯片内容高度相关
-            4. 在figure_reference中精确指定图片ID和描述
-            5. 只在图片能增强内容理解的幻灯片上添加图片
-            6. 对于方法和结果部分，确保图表与文字内容紧密结合
-            
-            请以JSON格式返回，格式如下：
-            ```json
-            [
-              {{
-                "slide_number": 1,
-                "title": "幻灯片标题",
-                "content": ["要点1", "要点2", ...],
-                "includes_figure": false,
-                "figure_reference": null
-              }},
-              {{
-                "slide_number": 2,
-                "title": "幻灯片标题",
-                "content": ["要点1", "要点2", ...],
-                "includes_figure": true,
-                "figure_reference": {{
-                  "id": "图片ID",
-                  "description": "图表描述",
-                  "relevance": "该图表与幻灯片内容的相关性说明"
-                }}
-              }}
-            ]
-            ```
-            
-            仅返回JSON数组，不要有任何其他文字。确保JSON结构严格正确。
-            """)
+            prompt = ChatPromptTemplate.from_template(SLIDES_PLANNING_PROMPT)
             
             # 调用LLM
             chain = prompt | self.llm
@@ -741,7 +606,9 @@ class PresentationPlanner:
                 "authors": ", ".join(paper_info.get("authors", [])),
                 "abstract": paper_info.get("abstract", ""),
                 "contributions": json.dumps(key_content.get("main_contributions", []), ensure_ascii=False),
+                "background_motivation": key_content.get("background_motivation", ""),
                 "methodology": key_content.get("methodology", ""),
+                "experimental_setup": key_content.get("experimental_setup", ""),
                 "results": key_content.get("results", ""),
                 "conclusions": key_content.get("conclusions", ""),
                 "figures_info": json.dumps(key_content.get("figures", []), ensure_ascii=False),
@@ -825,21 +692,11 @@ class PresentationPlanner:
         
         # 初始化对话历史，包括系统消息
         language_prompt = "中文" if self.language == "zh" else "English"
-        system_message = f"""
-        你是一个专业的学术演示设计专家。你的任务是帮助用户优化他们的学术演示幻灯片计划。
-        
-        当前论文信息：
-        - 标题: {self.paper_info.get('title', '未知标题')}
-        - 作者: {', '.join(self.paper_info.get('authors', ['未知作者']))}
-        
-        你应该：
-        1. 帮助用户理解当前的演示计划
-        2. 根据用户的反馈修改幻灯片内容、结构或顺序
-        3. 确保演示内容专业、清晰且有吸引力
-        4. 使用{language_prompt}与用户交流
-        
-        请记住，最终目标是创建一个能够清晰表达论文内容的学术演示。
-        """
+        system_message = INTERACTIVE_REFINEMENT_SYSTEM_MESSAGE.format(
+            title=self.paper_info.get('title', '未知标题'),
+            authors=', '.join(self.paper_info.get('authors', ['未知作者'])),
+            language_prompt=language_prompt
+        )
         
         self.conversation_history = [SystemMessage(content=system_message)]
         
@@ -1066,4 +923,4 @@ def generate_presentation_plan(raw_content_path, output_dir="output", model_name
         output_file = planner.save_presentation_plan(presentation_plan)
         return presentation_plan, output_file, planner
     
-    return None, None, planner 
+    return None, None, planner
