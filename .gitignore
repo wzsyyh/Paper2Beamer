@@ -63,3 +63,5 @@ output/images/*
 Thumbs.db
 
 models/ 
+
+dataset/

@@ -1,0 +1,4 @@
+PyPDF2>=3.0.0
+evaluate>=0.4.0
+bert-score>=0.3.13
+rouge-score>=0.1.2 

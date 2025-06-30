@@ -1,0 +1,10 @@
+# OCR
+paddleocr
+paddlepaddle
+
+# Vision and Text Models
+transformers
+torch
+Pillow
+evaluate
+bert-score

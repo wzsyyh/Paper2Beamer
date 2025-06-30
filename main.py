@@ -6,6 +6,7 @@
 import os
 import sys
 import json
+import time
 import argparse
 import logging
 from pathlib import Path
@@ -27,7 +28,6 @@ patch_langchain_openai()
 
 # 导入模块
 from modules.pdf_parser import extract_pdf_content
-from modules.content_processor import process_content
 from modules.presentation_planner import generate_presentation_plan
 from modules.tex_workflow import run_tex_workflow, run_revision_tex_workflow
 
@@ -165,14 +165,17 @@ def main():
     
     # 创建输出目录
     output_dir = args.output_dir
-    os.makedirs(output_dir, exist_ok=True)
+    
+    # 使用唯一的会话ID来区分不同的运行
+    session_id = f"{int(time.time())}"
     
     # 创建各阶段输出目录
-    raw_dir = os.path.join(output_dir, "raw")
-    plan_dir = os.path.join(output_dir, "plan")
-    tex_dir = os.path.join(output_dir, "tex")
+    raw_dir = os.path.join(output_dir, "raw", session_id)
+    plan_dir = os.path.join(output_dir, "plan", session_id)
+    tex_dir = os.path.join(output_dir, "tex", session_id)
+    img_dir = os.path.join(output_dir, "images", session_id)
     
-    for dir_path in [raw_dir, plan_dir, tex_dir]:
+    for dir_path in [raw_dir, plan_dir, tex_dir, img_dir]:
         os.makedirs(dir_path, exist_ok=True)
     
     # 检查是否为修订模式
@@ -232,31 +235,11 @@ def main():
         logger.error(f"PDF内容提取失败: {str(e)}")
         return 1
             
-    # 步骤2: 处理内容（如果需要）
-    logger.info("步骤2: 处理PDF内容...")
-    try:
-        processed_content, processed_content_path = process_content(raw_content_path, raw_dir)
-        
-        # 检查并修正处理后的内容格式
-        if processed_content and isinstance(processed_content, list) and len(processed_content) > 0:
-            logger.info("处理后的内容是列表格式，转换为字典格式...")
-            processed_content = processed_content[0]  # 取第一个元素
-            
-            # 重新保存处理后的内容
-            processed_content_path = os.path.join(raw_dir, "processed_content_fixed.json")
-            with open(processed_content_path, 'w', encoding='utf-8') as f:
-                json.dump(processed_content, f, ensure_ascii=False, indent=2)
-        
-        logger.info(f"处理后的内容已保存到: {processed_content_path}")
-    except Exception as e:
-        logger.error(f"内容处理失败: {str(e)}")
-        return 1
-            
-    # 步骤3: 生成演示计划
-    logger.info("步骤3: 生成演示计划...")
+    # 步骤2: 生成演示计划
+    logger.info("步骤2: 生成演示计划...")
     try:
         presentation_plan, plan_path, planner = generate_presentation_plan(
-            raw_content_path=processed_content_path,
+            raw_content_path=raw_content_path,
             output_dir=plan_dir,
             model_name=args.model,
             language=args.language
@@ -285,8 +268,8 @@ def main():
         logger.info("已跳过TEX生成和编译步骤")
         return 0
     
-    # 步骤4: 运行TEX工作流（生成TEX并编译）
-    logger.info("步骤4: 生成和编译TEX...")
+    # 步骤3: 运行TEX工作流（生成TEX并编译）
+    logger.info("步骤3: 生成和编译TEX...")
     try:
         success, message, pdf_path = run_tex_workflow(
             presentation_plan_path=plan_path,
@@ -302,8 +285,15 @@ def main():
             logger.info(f"生成的PDF文件: {pdf_path}")
             
             # 输出修订模式的用法提示
+            previous_tex_path = os.path.join(tex_dir, 'output.tex')
+            if not os.path.exists(previous_tex_path):
+                # 尝试查找其他tex文件
+                tex_files = [f for f in os.listdir(tex_dir) if f.endswith(".tex")]
+                if tex_files:
+                    previous_tex_path = os.path.join(tex_dir, tex_files[0])
+
             logger.info("\n如需修改演示文稿，可使用以下命令运行修订模式：")
-            logger.info(f"python main.py --revise --original-plan={plan_path} --previous-tex={os.path.join(tex_dir, 'output.tex')} --feedback=\"您的修改建议\" --output-dir={output_dir} --theme={args.theme}")
+            logger.info(f"python main.py --revise --original-plan='{plan_path}' --previous-tex='{previous_tex_path}' --feedback=\"您的修改建议\" --output-dir='{output_dir}' --theme={args.theme}")
             
             return 0
         else:
@@ -314,4 +304,4 @@ def main():
         return 1
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

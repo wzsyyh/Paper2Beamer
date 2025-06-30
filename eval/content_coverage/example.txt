@@ -1,0 +1,26 @@
+(ptb) yuheng@rtx4090:~/Project/paper-to-beamer$ python3 eval/run_benchmark.py
+2025-06-30 14:46:44 - INFO - --- 正在处理论文: 01 ---
+2025-06-30 14:46:44 - INFO - 步骤 1: 为 dataset/silver/01/paper.pdf 生成 .tex 文件
+2025-06-30 14:46:44 - INFO - 运行命令: python3 main.py dataset/silver/01/paper.pdf --language en
+2025-06-30 14:48:17 - INFO - 找到生成的tex文件: output/tex/1751266006/output.tex
+2025-06-30 14:48:17 - INFO - 步骤 2: 评估 output/tex/1751266006/output.tex
+2025-06-30 14:48:17 - INFO - 运行命令: python3 eval/content_coverage/run_evaluation.py --pdf dataset/silver/01/paper.pdf --tex output/tex/1751266006/output.tex --lang en
+2025-06-30 14:48:29 - INFO - 找到分数: {'bertscore_f1': 0.8487, 'rouge_l': 0.2}
+2025-06-30 14:48:29 - INFO - 成功处理并评分 01
+2025-06-30 14:48:29 - INFO - --- 正在处理论文: 02 ---
+2025-06-30 14:48:29 - INFO - 步骤 1: 为 dataset/silver/02/paper.pdf 生成 .tex 文件
+2025-06-30 14:48:29 - INFO - 运行命令: python3 main.py dataset/silver/02/paper.pdf --language en
+2025-06-30 14:49:38 - INFO - 找到生成的tex文件: output/tex/1751266111/output.tex
+2025-06-30 14:49:38 - INFO - 步骤 2: 评估 output/tex/1751266111/output.tex
+2025-06-30 14:49:38 - INFO - 运行命令: python3 eval/content_coverage/run_evaluation.py --pdf dataset/silver/02/paper.pdf --tex output/tex/1751266111/output.tex --lang en
+2025-06-30 14:49:49 - INFO - 找到分数: {'bertscore_f1': 0.8288, 'rouge_l': 0.1672}
+2025-06-30 14:49:49 - INFO - 成功处理并评分 02
+2025-06-30 14:49:49 - INFO - --- 基准测试完成 ---
+
+==============================
+      基准测试结果
+==============================
+处理的论文总数: 2
+平均 BERTScore F1: 0.8387
+平均 ROUGE-L:      0.1836
+==============================
