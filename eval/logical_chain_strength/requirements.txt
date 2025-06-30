@@ -1,0 +1,7 @@
+# For LLM interaction
+langchain>=0.1.0
+langchain-openai>=0.3.18
+python-dotenv
+
+# For LaTeX parsing (if needed, can be done with regex initially)
+# Add other specific libraries here if required
