@@ -120,7 +120,7 @@
 **本层使用LLM完成可控、可解释的分类和识别任务，以评估产出的逻辑与结构。**
 
 #### **指标 2.1: 叙事结构完整性 (Narrative Arc Integrity)**
-
+（跑出来都是1.0，感觉没啥用）
 * **目的**: 量化评估幻灯片是否遵循了“动机-方法-结果-结论”的经典学术叙事结构。
 * **技术实现**:
     1.  **内容提取**: 解析`.tex`文件，按顺序提取每张幻灯片（Frame）的标题和核心要点文本。
@@ -164,11 +164,11 @@
         * **Prompt**: `"On a scale of 1-5, how well does the text on this slide explain the key message of the figure? 1: Unrelated. 3: Descriptive but not insightful. 5: Masterfully guides attention to the figure's core takeaway."`
 * **输出**: 所有含图幻灯片的平均分。
 
-##### **指标 3.2: 渐进式披露得分 (Progressive Disclosure Score)**
+<!-- ##### **指标 3.2: 渐进式披露得分 (Progressive Disclosure Score)**
 
 * **目的**: 评估`\pause`等动态效果的使用是否真正有助于降低认知负荷、引导观众思路。
 * **技术实现**:
     1.  **分步渲染**: 对包含动态指令的幻灯片，将其渲染成一个图像序列，代表演示的每一步。
     2.  **LLM评委**: 将这个图像序列发送给**已校准的LLM**。
         * **Prompt**: `"This sequence of images shows a step-by-step reveal on a slide. On a scale of 1-5, how effective is this progression? 1: Confusing or unnecessary. 3: Logical but adds little value. 5: Essential for clarifying a complex idea."`
-* **输出**: 所有动态幻灯片的平均分。
+* **输出**: 所有动态幻灯片的平均分。 -->

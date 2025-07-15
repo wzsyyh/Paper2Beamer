@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-自动化基准测试脚本
-对数据集中的所有论文运行生成和评估流程，并计算平均分。
+自动化评估脚本 (从清单)
+根据输入的JSON清单文件，对其中指定的PDF和.tex配对运行评估流程，并计算平均分。
 """
 
 import os
@@ -13,6 +13,7 @@ import json
 import logging
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
+import argparse
 
 # 设置日志
 logging.basicConfig(
@@ -45,16 +46,6 @@ def run_command(command: List[str], env: Optional[Dict[str, str]] = None) -> Tup
         logger.error(f"找不到命令: {e}")
         return False, "", str(e)
 
-def parse_main_output(output: str) -> Optional[str]:
-    """从main.py的输出中解析成的.tex文件路径。"""
-    match = re.search(r"--previous-tex='([^']+\.tex)'", output)
-    if match:
-        path = match.group(1)
-        logger.info(f"找到生成的tex文件: {path}")
-        return path
-    logger.warning("在main.py的输出中找不到.tex文件路径。")
-    return None
-
 def parse_evaluation_output(output: str) -> Optional[Dict[str, float]]:
     """从run_evaluation.py的输出中解析内容覆盖度分数。"""
     try:
@@ -84,7 +75,7 @@ def parse_fidelity_output(output: str) -> Optional[Dict[str, float]]:
                 "fidelity_precision": float(precision_match.group(1)),
                 "fidelity_f1_score": float(f1_match.group(1)),
             }
-            logger.info(f"找到关键元素真度分数: {scores}")
+            logger.info(f"找到关键元素保真度分数: {scores}")
             return scores
     except Exception as e:
         logger.error(f"解析保真度输出失败: {e}")
@@ -107,7 +98,7 @@ def parse_text_figure_coherence_output(output: str) -> Optional[Dict[str, float]
             score = data["average_coherence_score"]
             if score is not None:
                 scores = {"text_figure_coherence": float(score)}
-                logger.info(f"找到图文匹配度分数: {scores}")
+                logger.info(f"找图文匹配度分数: {scores}")
                 return scores
     except json.JSONDecodeError as e:
         logger.error(f"解析图文匹配度输出失败 (JSON): {e}")
@@ -146,53 +137,57 @@ def parse_logical_chain_output(output: str) -> Optional[Dict[str, float]]:
 
 def main():
     """
-    在数据集运行基准测试的主函数。
+    根据输入的清单文件运行基准测试的主函数。
     """
-    dataset_path = Path("dataset/silver")
-    if not dataset_path.is_dir():
-        logger.error(f"找不到数据集目录: {dataset_path}")
+    parser = argparse.ArgumentParser(description="根据生成的清单文件运行评估基准测试。")
+    parser.add_argument(
+        "--manifest-path",
+        type=Path,
+        default=Path("output/eval_manifest.json"),
+        help="指向包含 (pdf_path, tex_path, paper_dir, images_dir) 配对的JSON清单文件的路径。"
+    )
+    args = parser.parse_args()
+
+    manifest_path = args.manifest_path
+    if not manifest_path.exists():
+        logger.error(f"找不到清单文件: {manifest_path}")
+        logger.error("请先运行 run_generation.py 来创建清单文件。")
         sys.exit(1)
 
-    logger.info("--- 步骤 0: 准备所有基准集 ---")
-    prepare_command = ["python3", "eval/key_elements_fidelity/prepare_ground_truth.py", "--dataset-path", str(dataset_path)]
-    success, _, _ = run_command(prepare_command)
-    if not success:
-        logger.error("准备基准集失败。正在中止。")
-        sys.exit(1)
-    logger.info("--- 所有基准集准备就绪 ---")
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        evaluation_pairs = json.load(f)
+
+    # 假设数据集路径可以从第一个条目中推断出来，用于准备基准集
+    if evaluation_pairs:
+        first_paper_dir = Path(evaluation_pairs[0]["paper_dir"])
+        dataset_path = first_paper_dir.parent
+        logger.info(f"--- 步骤 0: 准备所有基准集 (数据集: {dataset_path}) ---")
+        prepare_command = ["python3", "eval/key_elements_fidelity/prepare_ground_truth.py", "--dataset-path", str(dataset_path)]
+        success, _, _ = run_command(prepare_command)
+        if not success:
+            logger.error("准备基准集失败。正在中止。")
+            sys.exit(1)
+        logger.info("--- 所有基准集准备就绪 ---")
 
     all_scores = []
-    paper_dirs = sorted([d for d in dataset_path.iterdir() if d.is_dir()])
-
-    for paper_dir in paper_dirs:
-        logger.info(f"--- 正在处理论文: {paper_dir.name} ---")
-        pdf_path = paper_dir / "paper.pdf"
-        if not pdf_path.exists():
-            logger.warning(f"在 {paper_dir} 中找不到 paper.pdf，跳过。")
-            continue
-
-        logger.info(f"步骤 1: 为 {pdf_path} 生成 .tex 文件")
-        main_command = ["python3", "main.py", str(pdf_path), "--language", "en"]
-        success, main_stdout, main_stderr = run_command(main_command)
-        if not success:
-            logger.error(f"为 {pdf_path} 生成 .tex 文件失败。跳过。")
-            continue
-
-        combined_output = main_stdout + "\n" + main_stderr
-        tex_path_str = parse_main_output(combined_output)
-        if not tex_path_str or not Path(tex_path_str).exists():
-            logger.error(f"找不到或无法访问生成的.tex文件。跳过。")
-            continue
+    
+    for pair in evaluation_pairs:
+        pdf_path = Path(pair["pdf_path"])
+        tex_path = Path(pair["tex_path"])
+        paper_dir = Path(pair["paper_dir"])
+        images_dir = Path(pair["images_dir"])
         
-        tex_path = Path(tex_path_str)
-        images_dir = tex_path.parent / "images"
-        if not images_dir.exists():
-            session_id = tex_path.parent.name
-            images_dir = Path(tex_path.parent.parent.parent) / "images" / session_id
-        
-        current_paper_scores = {}
+        logger.info(f"--- 正在评估论文: {paper_dir.name} ---")
+        logger.info(f"PDF: {pdf_path}")
+        logger.info(f"TEX: {tex_path}")
 
-        logger.info(f"步骤 2a: 评估内容覆盖度 {tex_path}")
+        if not all([pdf_path.exists(), tex_path.exists(), images_dir.is_dir()]):
+            logger.warning(f"PDF, TEX, 或图片目录不存在。跳过 {paper_dir.name}。")
+            continue
+
+        current_paper_scores = {"paper_name": paper_dir.name}
+
+        logger.info(f"步骤 1: 评估内容覆盖度 {tex_path}")
         eval_env = {"HF_ENDPOINT": "https://hf-mirror.com"}
         coverage_command = ["python3", "eval/content_coverage/run_evaluation.py", "--pdf", str(pdf_path), "--tex", str(tex_path), "--lang", "en"]
         success, coverage_stdout, _ = run_command(coverage_command, env=eval_env)
@@ -201,10 +196,10 @@ def main():
             if coverage_scores:
                 current_paper_scores.update(coverage_scores)
 
-        logger.info(f"步骤 2b: 评估关键元素保真度 {tex_path}")
+        logger.info(f"步骤 2: 评估关键元素保真度 {tex_path}")
         ground_truth_json = paper_dir / "ground_truth_visuals.json"
         if not ground_truth_json.exists():
-            logger.warning(f"找不到 {ground_truth_json}，跳保真度评估。")
+            logger.warning(f"找不到 {ground_truth_json}，跳过保真度评估。")
         else:
             fidelity_command = ["python3", "eval/key_elements_fidelity/evaluate_fidelity.py", "--tex-path", str(tex_path), "--images-dir", str(images_dir), "--ground-truth-json", str(ground_truth_json)]
             success, fidelity_stdout, _ = run_command(fidelity_command, env=eval_env)
@@ -213,7 +208,7 @@ def main():
                 if fidelity_scores:
                     current_paper_scores.update(fidelity_scores)
         
-        logger.info(f"步骤 2c: 评估逻辑链条强度 {tex_path}")
+        logger.info(f"步骤 3: 评估逻辑链条强度 {tex_path}")
         logical_chain_command = ["python3", "eval/logical_chain_strength/run_evaluation.py", str(tex_path)]
         success, logical_chain_stdout, _ = run_command(logical_chain_command)
         if success:
@@ -221,7 +216,7 @@ def main():
             if logical_chain_scores:
                 current_paper_scores.update(logical_chain_scores)
 
-        logger.info(f"步骤 3: 评估图文匹配度 {tex_path}")
+        logger.info(f"步骤 4: 评估图文匹配度 {tex_path}")
         coherence_command = ["python3", "eval/text_figure_coherence/run_evaluation.py", "--tex-path", str(tex_path)]
         success, coherence_stdout, _ = run_command(coherence_command)
         if success:
@@ -229,7 +224,7 @@ def main():
             if coherence_scores:
                 current_paper_scores.update(coherence_scores)
 
-        if current_paper_scores:
+        if len(current_paper_scores) > 1: # paper_name is always there
             all_scores.append(current_paper_scores)
             logger.info(f"成功处理并评分 {paper_dir.name}")
         else:
@@ -240,7 +235,12 @@ def main():
         sys.exit(1)
 
     avg_scores = {}
-    for key in all_scores[0].keys():
+    all_keys = set()
+    for s in all_scores:
+        all_keys.update(s.keys())
+    all_keys.discard("paper_name")
+
+    for key in sorted(list(all_keys)):
         valid_scores = [s[key] for s in all_scores if key in s]
         if valid_scores:
             avg_scores[key] = sum(valid_scores) / len(valid_scores)
@@ -253,13 +253,12 @@ def main():
     print("\n" + "-"*40)
     print("        单篇论文得分详情")
     print("-"*40)
-    for i, paper_dir in enumerate(paper_dirs):
-        if i < len(all_scores):
-            print(f"\n--- 论文: {paper_dir.name} ---")
-            scores = all_scores[i]
-            for metric, value in scores.items():
-                formatted_metric = metric.replace('_', ' ').title()
-                print(f"  {formatted_metric:<25}: {value:.4f}")
+    for scores in all_scores:
+        paper_name = scores.pop("paper_name", "Unknown")
+        print(f"\n--- 论文: {paper_name} ---")
+        for metric, value in sorted(scores.items()):
+            formatted_metric = metric.replace('_', ' ').title()
+            print(f"  {formatted_metric:<25}: {value:.4f}")
     print("\n" + "="*40)
     print("           平均分总结")
     print("="*40)
@@ -282,7 +281,7 @@ def main():
         print(f"平均逻辑连贯率:   {avg_scores['logical_chain_coherence_rate']:.4f}")
     print("\n--- 指标 3.1: 图文匹配度 ---")
     if "text_figure_coherence" in avg_scores:
-        print(f"均图文匹配度分数: {avg_scores['text_figure_coherence']:.4f}")
+        print(f"平均图文匹配度分数: {avg_scores['text_figure_coherence']:.4f}")
     print("="*40)
 
 if __name__ == "__main__":

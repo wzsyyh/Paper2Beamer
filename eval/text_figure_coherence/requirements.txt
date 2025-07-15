@@ -1,0 +1,10 @@
+# For rendering PDF to images
+PyMuPDF
+
+# For OpenAI API access
+openai
+langchain-openai
+langchain-core
+
+# For general utilities
+tqdm
