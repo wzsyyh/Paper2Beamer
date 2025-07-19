@@ -109,10 +109,21 @@ class TexValidator:
             os.makedirs(temp_images_dir, exist_ok=True)
             
             # 从output/images/{session_id}复制图片到临时目录
-            images_dir = os.path.join("output", "images", session_id)
-            if os.path.exists(images_dir) and os.path.isdir(images_dir):
-                for filename in os.listdir(images_dir):
-                    src_file = os.path.join(images_dir, filename)
+            # 注意：session_id可能包含前缀，需要找到实际的图片目录
+            images_base_dir = os.path.join("output", "images")
+            actual_images_dir = None
+            
+            # 查找包含session_id的图片目录
+            if os.path.exists(images_base_dir):
+                for dir_name in os.listdir(images_base_dir):
+                    dir_path = os.path.join(images_base_dir, dir_name)
+                    if os.path.isdir(dir_path) and session_id in dir_name:
+                        actual_images_dir = dir_path
+                        break
+            
+            if actual_images_dir and os.path.exists(actual_images_dir):
+                for filename in os.listdir(actual_images_dir):
+                    src_file = os.path.join(actual_images_dir, filename)
                     dst_file = os.path.join(temp_images_dir, filename)
                     if os.path.isfile(src_file):
                         shutil.copy2(src_file, dst_file)
@@ -219,13 +230,22 @@ class TexValidator:
         # 获取session_id
         session_id = self.session_id
         
-        # 查找图片源目录
-        images_dir = os.path.join("output", "images", session_id)
-        if not os.path.exists(images_dir) or not os.path.isdir(images_dir):
-            self.logger.warning(f"图片目录不存在: {images_dir}")
+        # 查找实际的图片源目录
+        images_base_dir = os.path.join("output", "images")
+        actual_images_dir = None
+        
+        if os.path.exists(images_base_dir):
+            for dir_name in os.listdir(images_base_dir):
+                dir_path = os.path.join(images_base_dir, dir_name)
+                if os.path.isdir(dir_path) and session_id in dir_name:
+                    actual_images_dir = dir_path
+                    break
+        
+        if not actual_images_dir or not os.path.exists(actual_images_dir):
+            self.logger.warning(f"图片目录不存在，session_id: {session_id}")
             return
         
-        self.logger.info(f"使用图片目录: {images_dir}")
+        self.logger.info(f"使用图片目录: {actual_images_dir}")
         
         # 处理每个图片引用
         missing_images = []
@@ -233,16 +253,23 @@ class TexValidator:
             # 提取文件名
             img_filename = os.path.basename(img_path)
             
-            # 检查图片是否存在
-            src_file = os.path.join(images_dir, img_filename)
-            if os.path.exists(src_file) and os.path.isfile(src_file):
-                self.logger.info(f"找到图片: {src_file}")
-                # 更新TEX内容中的图片路径
+            # 检查图片是否存在 - 首先检查原始路径
+            if os.path.exists(img_path) and os.path.isfile(img_path):
+                self.logger.info(f"找到图片: {img_path}")
+                # 更新TEX内容中的图片路径为相对路径
                 new_path = f"images/{img_filename}"
                 tex_content = tex_content.replace(f"{{{img_path}}}", f"{{{new_path}}}")
             else:
-                self.logger.warning(f"未找到图片: {img_path}")
-                missing_images.append(img_path)
+                # 如果原始路径不存在，尝试在实际图片目录中查找
+                src_file = os.path.join(actual_images_dir, img_filename)
+                if os.path.exists(src_file) and os.path.isfile(src_file):
+                    self.logger.info(f"找到图片: {src_file}")
+                    # 更新TEX内容中的图片路径
+                    new_path = f"images/{img_filename}"
+                    tex_content = tex_content.replace(f"{{{img_path}}}", f"{{{new_path}}}")
+                else:
+                    self.logger.warning(f"未找到图片: {img_path}")
+                    missing_images.append(img_path)
         
         # 如果有缺失的图片，创建占位图形
         if missing_images:

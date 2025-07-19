@@ -29,6 +29,7 @@ patch_langchain_openai()
 
 # 导入模块
 from modules.tex_generator import TexGenerator
+from modules.direct_tex_generator import DirectTexGenerator
 from modules.tex_validator import TexValidator
 from modules.revision_tex_generator import generate_revised_tex, RevisionTexGenerator
 
@@ -563,4 +564,103 @@ def run_revision_tex_workflow(
         logging.error(f"修订版TEX工作流执行出错: {str(e)}")
         import traceback
         traceback.print_exc()
-        return False, f"修订版TEX工作流执行出错: {str(e)}", None 
+        return False, f"订版TEX工作流执行出错: {str(e)}", None
+
+def run_direct_tex_workflow(
+    raw_content_path: str,
+    output_dir: str,
+    model_name: str = "gpt-4o",
+    language: str = "zh",
+    theme: str = "Madrid",
+    max_retries: int = 5
+) -> Tuple[bool, str, str]:
+    """
+    运行直接从原始文本生成TEX的工作流（无Planner）
+
+    Args:
+        raw_content_path: 原始文本内容文件路径
+        output_dir: 输出目录
+        model_name: 使用的语言模型
+        language: 输出语言
+        theme: Beamer主题
+        max_retries: 最大重试次数
+
+    Returns:
+        Tuple[bool, str, str]: (是否成功, 消息, 生成的PDF文件路径)
+    """
+    logging.info(f"开始直接TEX工作流，处理原始文本: {raw_content_path}")
+    
+    # 确保输出目录存在
+    os.makedirs(output_dir, exist_ok=True)
+    
+    try:
+        # 步骤1: 生成TEX代码
+        logging.info("步骤1: 直接从原始文本生成TEX代码...")
+        generator = DirectTexGenerator(
+            raw_content_path=raw_content_path,
+            output_dir=output_dir,
+            model_name=model_name,
+            language=language,
+            theme=theme,
+        )
+        tex_code = generator.generate_tex()
+        if not tex_code:
+            logging.error("直接生成TEX代码失败")
+            return False, "直接生成TEX代码失败", None
+        
+        tex_path = generator.save_tex(tex_code)
+        if not tex_path:
+            logging.error("保存TEX代码失败")
+            return False, "保存TEX代码失败", None
+            
+        logging.info(f"TEX代码已生成: {tex_path}")
+
+        # 步骤2: 验证和编译
+        logging.info("步骤2: 验证和编译TEX文件...")
+        session_id = os.path.basename(os.path.dirname(raw_content_path))
+        validator = TexValidator(output_dir=output_dir, language=language, session_id=session_id)
+        
+        success = False
+        pdf_path = None
+        error_message = ""
+
+        for attempt in range(1, max_retries + 1):
+            logging.info(f"开始第 {attempt}/{max_retries} 次验证...")
+            compile_success, compile_message, output_pdf = validator.validate(tex_path)
+            
+            if compile_success:
+                success = True
+                pdf_path = output_pdf
+                logging.info(f"TEX代码验证成功: {compile_message}")
+                break
+            else:
+                logging.warning(f"TEX代码验证失败: {compile_message}")
+                error_message = compile_message
+                
+                if attempt < max_retries:
+                    logging.info("尝试修复TEX代码...")
+                    with open(tex_path, 'r', encoding='utf-8') as f:
+                        current_tex_code = f.read()
+                    
+                    fixed_tex_code = validator.fix_tex_code(
+                        current_tex_code, 
+                        error_message,
+                        generator.llm
+                    )
+                    
+                    with open(tex_path, 'w', encoding='utf-8') as f:
+                        f.write(fixed_tex_code)
+                    
+                    logging.info(f"已保存修复后的代码: {tex_path}")
+                    time.sleep(1)
+        
+        if success:
+            return True, "直接TEX生成和编译成功", pdf_path
+        else:
+            return False, f"经过 {max_retries} 次尝试，仍然无法修复TEX代码", None
+
+    except Exception as e:
+        logging.error(f"直接TEX工作流执行出错: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False, f"直接TEX工作流执行出错: {str(e)}", None

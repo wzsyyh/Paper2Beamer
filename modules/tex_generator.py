@@ -129,8 +129,8 @@ class TexGenerator:
         # 预处理幻灯片中的图片引用
         self._preprocess_slide_figures(slides_plan)
         
-        # 根据语言设置提示
-        language_prompt = "请用中文生成" if self.language == "zh" else "Please generate in English"
+        # 强制使用英文生成，因为JSON内容已经是英文的
+        language_prompt = "Please generate in English"
         
         # 构建提示
         prompt = ChatPromptTemplate.from_template(TEX_GENERATION_PROMPT)
@@ -270,4 +270,4 @@ def generate_tex(presentation_plan_path, output_dir="output", model_name="gpt-4o
         output_file = generator.save_tex(tex_code)
         return tex_code, output_file
     
-    return "", "" 
+    return "", ""

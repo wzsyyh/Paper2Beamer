@@ -1,10 +1,10 @@
 """
 PDF解析模块：负责解析PDF文件并提取基本信息
-该模块现在只是简单地调用raw_extractor模块的功能，不做额外的结构化解析
+该模块现在调用轻量级提取器模块的功能，提供高效的内容提取
 """
 import os
 import logging
-from .raw_extractor import extract_raw_content
+from .lightweight_extractor import extract_lightweight_content
 
 def extract_pdf_content(pdf_path, output_dir="output", cleanup_temp=False):
     """
@@ -20,13 +20,13 @@ def extract_pdf_content(pdf_path, output_dir="output", cleanup_temp=False):
     """
     logging.info(f"开始从PDF中提取内容: {pdf_path}")
     
-    # 直接调用raw_extractor模块的功能
-    raw_content, raw_content_path = extract_raw_content(pdf_path, output_dir, cleanup_temp)
+    # 调用轻量级提取器模块的功能
+    lightweight_content, lightweight_content_path = extract_lightweight_content(pdf_path, output_dir, cleanup_temp)
     
-    if not raw_content:
+    if not lightweight_content:
         logging.error("PDF内容提取失败")
         return None, None
     
-    logging.info(f"PDF内容已提取并保存至: {raw_content_path}")
+    logging.info(f"PDF内容已提取并保存至: {lightweight_content_path}")
     
-    return raw_content, raw_content_path 
+    return lightweight_content, lightweight_content_path

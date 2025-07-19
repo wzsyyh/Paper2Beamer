@@ -23,7 +23,16 @@ from tqdm import tqdm
 # --- 配置 ---
 # 将此路径设置为您的API密钥所在的文件
 sys.path.append(str(Path(__file__).parent.parent.parent))
+
+# 加载环境变量
+from dotenv import load_dotenv
+if os.path.exists(".env"):
+    load_dotenv(".env")
+elif os.path.exists("env.local"):
+    load_dotenv("env.local")
+
 import patch_openai
+patch_openai.patch_openai_client()
 patch_openai.patch_langchain_openai()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
