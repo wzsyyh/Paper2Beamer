@@ -13,7 +13,7 @@
 
 # 从结构化的原始JSON内容直接生成LaTeX Beamer代码
 DIRECT_TEX_GENERATION_PROMPT = r"""
-你是一位顶尖的学术演讲设计专家和LaTeX Beamer大师。你的任务是分析一份从PDF中提取的结构化JSON内容，并直接将其转化为一个结构清晰、内容精炼、图文并茂的完整Beamer演示文稿。{language_prompt}。
+你是一位顶尖的学术演讲设计专家LaTeX Beamer大师。你的任务是分析一份从PDF中提取的结构化JSON内容，并直接将其转化为一个结构清晰、内容精炼、图文并茂的完整Beamer演示文稿。{language_prompt}。
 
 你的目标是创建一个可以直接编译的 `.tex` 文件，使用 **{theme}** 主题。
 
@@ -28,7 +28,7 @@ DIRECT_TEX_GENERATION_PROMPT = r"""
 
 1.  **分析与规划**:
     -   从 `document_info` 中提取标题、作者等信息，用于创建标题页。
-    -   通读 `pages_content` 中的所有页面文本，理解论文的整体结构和核心内容（背景、方法、结果、结论）。
+    -   通读 `pages_content` 中的所有页面文本，理解论文的整体结构和核心内容背景、方法、结果、结论）。
     -   **自行决定**演示文稿的逻辑流程和内容大纲。你现在同时演了Planner和Generator的角色。
 
 2.  **内容提炼与组织**:
@@ -62,7 +62,7 @@ DIRECT_TEX_GENERATION_PROMPT = r"""
 # 论文关键内容提取提示词 (presentation_planner.py)
 # ===============================================================================
 
-# 提取论文的核心内容（贡献点、方法论、结果等）
+# 提论文的核心内容（贡献点、方法论、结果等）
 KEY_CONTENT_EXTRACTION_PROMPT = """
 你是一位优秀的学术内容分析专家。{language_prompt}。请从以下学术论文信息中提取关键内容，以便创建一份专业、清晰且信息丰富的演示文稿。
 
@@ -79,13 +79,13 @@ KEY_CONTENT_EXTRACTION_PROMPT = """
 3. 方法论概述（简明扼要但技术上准确，包括算法、模型或理论框架，保留关键术语和专有名词）
 4. 实验设置（关键的评价指标、数据集、基准和对比方法）
 5. 主要结果和发现（量化的关键结果、比较和突破点）
-6. 结论和未来工作（主要结论和未来研究方向）
+6. 结论和未来工作（主要结论和未来研究方向
 7. 重要图表的解释和意义（详细分析）
 
 对于数学公式：
 - 提取关键公式，保持原有的数学符号表示方式
 - 简要解释每个公式的含义和在论文中的作用
-- 注意：公式会在幻灯片中以LaTeX格式重现
+- 注意：公会在幻灯片中以LaTeX格式重现
 
 对于代码片段：
 - 如果论文包含代码片段，请提取这些代码并指出其功能
@@ -132,7 +132,7 @@ KEY_CONTENT_EXTRACTION_PROMPT = """
       "caption": "图片的官方标题（来自caption字段）",
       "description": "图片的详细描述，解释其展示的内容、方法或结果。请基于caption进行扩展。",
       "importance": "图片在论文中的重要性（高/中/低）",
-      "relevance": "图片与哪个部分最相关（方法/结果/等）"
+      "relevance": "图片与哪个部分最关（方法/结果/等）"
     }}
   ],
   "conclusions": "结论和未来工作"
@@ -151,7 +151,7 @@ KEY_CONTENT_EXTRACTION_PROMPT = """
 
 # 根据论文内容规划幻灯片
 SLIDES_PLANNING_PROMPT = """
-你是一位顶尖的学术演讲设计专家，你的使命是将复杂的学术论文转化为引人入胜且易于理解的演示文稿。{language_prompt}。请牢记：好的学术演讲应该让听众在最短时间内理解研究的核心内容，而不需要他们阅读整篇论文。
+你是一位顶尖的学术演讲设计专家，你的使命是将复杂的学术论转化为引人入胜且易于理解的演示文稿。{language_prompt}。请记：好的学术演讲应该让听众在最短时间内理解研究的核心内容，而不需要他们阅读整篇论文。
 
 论文信息：
 - 标题: {title}
@@ -169,10 +169,16 @@ SLIDES_PLANNING_PROMPT = """
 论文图表信息：
 {figures_info}
 
+论文表格信息:
+- **硬性规则**: 如果论文的“结果”部分或任何地方包含用Markdown语法（`|`）定义的表格，你**必须**为其中最关键的一个表格创建一张专门的幻灯片。
+- 这张幻灯片**必须**包含该表格的完整、未经修改的Markdown原文。
+- 你必须在幻灯片计划的JSON输出中，正确地设置 `includes_table: true` 并填充 `table_reference` 字段。
+- **这是一个强制性要求，不能忽略。**
+
 ## 从听众角度思考
 想象你是听众，你希望在15-20分钟的演讲中快速了解：
 1. 这项研究解决了什么问题？为什么这个问题重要？
-2. 研究者提出了什么新方法？与现有方法相比有什么优势？
+2. 研究者提出了什么方法？与现有方法相比有什么优势？
 3. 方法是如何工作的？有什么关键创新点？
 4. 实验结果如何？数据说明了什么？
 5. 这项研究的意义和影响是什么？
@@ -214,7 +220,7 @@ SLIDES_PLANNING_PROMPT = """
 ## 幻灯片分配指导原则
 
 1. **内容重要性原则**：将更多幻灯片分配给论文的核心创新点和主要贡献
-   - 方法创新型论文：方法部分应占总数的40-50%
+   - 方法创新型论文：方法部分占总数的40-50%
    - 实验结果型论文：结果部分应占总数的40-50%
    - 综述型或分析型论文：背景和相关工作可能需要更多幻灯片
 
@@ -232,7 +238,7 @@ SLIDES_PLANNING_PROMPT = """
    - 标准演讲（20-30分钟）：约20张幻灯片
    - 长演讲（45分钟以上）：可扩展至25-30张，增加方法和结果的细节
 
-5. **视觉内容优先**：图表丰富的部分可能需要更多幻灯片
+5. **视觉内容优先**：图表丰富的部分可能需要多幻灯片
    - 每个关键图表应有足够空间清晰展示
    - 复杂图表可能需要单独的幻灯片
 
@@ -257,7 +263,7 @@ SLIDES_PLANNING_PROMPT = """
 4. **技术内容处理**：
    - 数学公式：只展示最关键的公式，并直观解释
    - 算法：使用伪代码或流程图，而不是原始代码
-   - 复杂模型：使用分层方式逐步展示，而非一次性展示所有细节
+   - 复杂模型：使用分层方式逐步展示，而非一次性展示有细节
 
 请根据以上指南，设计一套高效的演示幻灯片，让听众能在短时间内理解并记住这项研究的核心内容。
 
@@ -290,11 +296,33 @@ SLIDES_PLANNING_PROMPT = """
       "description": "展示问题难点的图表",
       "relevance": "直观展示现有方法失败的场景"
     }},
+    "includes_table": false,
+    "table_reference": null,
     "includes_equation": false,
     "equation": null,
     "includes_code": false,
     "code_snippet": null,
-    "presenter_notes": "可以请听众思考这个问题的重要性，增加互动"
+    "presenter_notes": "可以请听众思考个问题的重要性，增加互动"
+  }},
+  {{
+    "slide_number": 5,
+    "title": "核心结果：我们的方法在POPE基准上表现最佳",
+    "content": [
+        "在所有三个子任务（随机、流行、对抗）上均超越了现有SOTA方法。",
+        "平均F1分数和准确率实现了显著提升。"
+    ],
+    "includes_figure": false,
+    "figure_reference": null,
+    "includes_table": true,
+    "table_reference": {{
+        "caption": "Table 1: POPE hallucination evaluation results on three different LVLMs.",
+        "markdown_content": "| Model   | LLaVA-1.5 |      | InstructBLIP |      | Qwen-VL                                                                  |      |  |\\n|---------|-----------|------|--------------|------|--------------------------------------------------------------------------|------|--|\\n|         |           |      |              |      | Method Accuracy ↑ F1 Score ↑ Accuracy ↑ F1 Score ↑ Accuracy ↑ F1 Score ↑ |      |  |\\n| Vanilla | 79.8      | 79.4 | 76.3         | 78.0 | 83.5                                                                     | 81.2 |  |\\n| VCD     | 82.3      | 83.4 | 80.1         | 81.0 | 84.5                                                                     | 83.3 |  |\\n| OPERA   | 84.2      | 83.7 | 79.6         | 80.9 | 84.3                                                                     | 82.6 |  |\\n| VTI     | 86.5      | 85.9 | 81.8         | 83.2 | 85.2                                                                     | 84.1 |  |"
+    }},
+    "includes_equation": false,
+    "equation": null,
+    "includes_code": false,
+    "code_snippet": null,
+    "presenter_notes": "这张幻灯片展示了我们方法的核心优势。需要强调VTI在所有模型上的一致性提升。"
   }}
 ]
 ```
@@ -335,72 +363,63 @@ INTERACTIVE_REFINEMENT_SYSTEM_MESSAGE = """
 # ===============================================================================
 
 # 生成LaTeX Beamer代码
-TEX_GENERATION_PROMPT = """
-你是一位LaTeX Beamer专家，擅长将学术演示计划转换为专业、美观且结构良好的LaTeX Beamer演示文稿。{language_prompt}一个基于以下演示计划的完整Beamer演示文稿的LaTeX代码。
+TEX_GENERATION_PROMPT = r"""
+你是一位LaTeX Beamer专家，你的任务是根据一份JSON格式的演示计划，生成一个完整、专业且可直接编译的Beamer演示文稿。{language_prompt}。
 
-演示计划:
+**输入**:
+你将收到一个名为 `plan` 的JSON对象，其中包含了整个演示文稿的结构和内容。
+
+**任务**:
+请严格按照 `plan` 的内容，使用 `{theme}` 主题，生成完整的LaTeX Beamer代码。
+
+**核心指令**:
+
+1.  **文档头部**:
+    *   使用 `\documentclass[10pt]{{beamer}}`。
+    *   导入必要的宏包: `graphicx`, `booktabs`, `adjustbox`, `utf8` (如果需要), `ctex` (如果是中文)。
+    *   设置Beamer主题: `\usetheme{{{theme}}}`。
+    *   定义标题、作者、机构和日期，这些信息可以从 `plan.paper_info` 中获取。
+
+2.  **标题页**:
+    *   在文档开始处使用 `\frame{{\titlepage}}` 创建标题页。
+
+3.  **目录页**:
+    *   在标题页之后，使用 `\frame{{\\frametitle{{Outline}} \tableofcontents}}` 创建目录页。
+
+4.  **内容幻灯片 (Frames)**:
+    *   遍历 `plan.slides_plan` 中的每一个幻灯片对象。
+    *   为每个对象创建一个 `\begin{{frame}}` 环境。
+    *   使用幻灯片对象的 `title` 字段设置 `\frametitle`。
+
+5.  **内容渲染**:
+    *   **文本**: 将 `content` 数组中的每个字符串渲染为 `\item`。将它们包裹在 `\begin{{itemize}}` ... `\end{{itemize}}` 中。
+    *   **图片**: 如果 `includes_figure` 为 `true`，则使用 `figure_reference` 中的信息创建 `figure` 环境。
+        *   图片路径来自 `figure_reference.path`。
+        *   图片标题来自 `figure_reference.caption`。
+        *   **强制要求**: `\includegraphics` 命令**必须**使用 `width=0.8\textwidth, height=0.6\textheight, keepaspectratio` 参数。
+    *   **表格**: 如果 `includes_table` 为 `true`，你必须将 `table_reference.markdown_content` 的内容转换为LaTeX表格。
+        *   **转换逻辑**:
+            1.  在 `\begin{{frame}}` 中创建一个 `\begin{{table}}` 环境。
+            2.  使用 `table_reference.caption` 作为 `\caption{{...}}` 的内容。
+            3.  为了确保表格大小合适，使用 `\begin{{adjustbox}}{{width=\\textwidth,center}}` 包裹 `tabular` 环境。
+            4.  解析 `markdown_content` 字符串：
+                *   计算 `|` 的数量来确定列数，并生成 `tabular` 的列定义 (例如, `{{l|c|r}}`)。
+                *   将Markdown的每一行转换为LaTeX的表格行，用 `&` 分隔单元格，用 `\\\\` 换行。
+                *   忽略Markdown的表头分隔线 (如 `|---|---|`)。
+                *   使用 `\toprule`, `\midrule`, `\bottomrule` (来自 `booktabs` 包) 来画水平线，以获得更专业的外观。
+    *   **公式/代码**: 如果 `includes_equation` 或 `includes_code` 为 `true`，请将相应的内容正确地放置在数学环境或代码清单环境中。
+
+**输出要求**:
+*   只输出完整的、可直接编译的LaTeX代码。
+*   不要包含任何解释、注释或Markdown标记。
+*   确保代码的整洁和专业性。
+
+**演示计划 (JSON)**:
 ```json
 {plan}
 ```
 
-请生成一个完整的、可直接编译的LaTeX Beamer代码，使用{theme}主题。你的代码应满足以下要求：
-
-1. **文档结构与配置**
-   - 包含所有必要的宏包和设置，特别是处理图片、数学公式和代码的宏包
-   - 设置适当的页面比例、字体大小和主题颜色
-   - 包含目录、节标题和导航元素
-   - 使用 \\mode<presentation> 确保内容适合演示
-
-2. **标题页设计**
-   - 标题页设计美观，标题和作者信息居中显示
-   - 使用适当的字体大小和强调方式
-   - 包含机构标识和日期信息
-
-3. **幻灯片内容排版**
-   - 为每个幻灯片创建独立的frame环境，设置合适的标题
-   - 使用itemize和enumerate环境组织列表内容
-   - 使用columns环境创建并排的文本和图像布局
-   - 利用Beamer的overlay功能实现内容的逐步显示
-
-4. **数学公式处理**
-   - 正确使用数学环境（equation、align等）
-   - 确保公式编号和引用正确
-   - 对复杂公式添加注释或解释
-
-5. **代码展示**
-   - 使用listings或minted宏包显示代码
-   - 设置适当的语法高亮和格式
-   - 为代码添加标题和解释
-
-6. **图片与图表**
-   - 使用figure环境和\\includegraphics命令插入图片
-   - **强制性要求**：所有`\\includegraphics`命令都**必须**包含`width=0.8\\textwidth, height=0.6\\textheight, keepaspectratio`参数。这将确保图片的宽度和高度都被限制在合理的范围内，并保持其原始宽高比。这是一个必须严格遵守的规则。
-   - 设置图片位置和caption。
-   - 确保图片路径正确（使用figure_reference中的path字段）
-   - 对于caption，使用以下优先级：
-     - 如果存在original_caption，优先使用
-     - 如果存在title，使用title作为标题
-     - 如果存在figure_number，添加到标题前（例如"Figure 1: ..."）
-     - 如果以上都不存在，使用description字段
-   - 根据caption_length决定说明文字长度：short为简短说明，medium为中等长度，long为详细说明
-
-7. **其他高级功能**
-   - 添加页脚信息（页码、部分标题等）
-   - 设置适当的颜色和强调方式
-   - 使用block环境突出重要内容
-
-8. **语言支持**
-   - 如果是中文演示文稿，使用ctex宏包和适当的字体设置
-   - 确保所有文本元素支持UTF-8编码
-
-代码要求：
-1. 代码必须完整且可直接编译，不应有任何语法错误
-2. 使用简洁、清晰的代码风格，添加适当的注释
-3. 确保图片路径正确，使用figure_reference中的path字段指定的路径
-4. 如果演示计划中包含公式或代码，确保它们使用正确的LaTeX语法
-5. 生成的PDF应该专业、美观，适合学术演讲
-
-请直接返回完整的LaTeX代码，不需要解释或介绍。确保代码可以直接复制粘贴并编译。
+请现在开始生成代码。
 """
 
 
@@ -532,7 +551,7 @@ TEX_ERROR_FIX_PROMPT = r"""
 {tex_code}
 ```
 
-请仔细分析错误原因，并提供修复后的完整LaTeX代码。确保修复时遵循以下原则：
+请仔细分析错误原，并提供修复后的完整LaTeX代码。确保修复时遵循以下原则：
 1. 精确定位错误位置，只修改必要的部分
 2. 保持文档的整体结构和功能不变
 3. **重要：绝对不要修改图片路径！** 保持所有 `\includegraphics` 命令中的路径完全不变
@@ -542,7 +561,7 @@ TEX_ERROR_FIX_PROMPT = r"""
    - 图片环境结构问题（确保 `\caption` 在 `figure` 环境内）
    - 特殊字符转义问题
    - 中文支持和字体设置问题
-5. 如果涉及字体问题，选择提供的系统字体列表中的适当字体
+5. 如果涉及字体问题，选择提供的系统字体列中的适当字体
 6. 确保修复后的代码能够正确编译
 
 只返回完整的修复后代码，不需要任何解释。修复后的代码必须保持与原始代码相同的功能和外观，只修正导致编译错误的问题。
