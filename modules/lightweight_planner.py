@@ -165,9 +165,9 @@ class LightweightPlanner:
         }
         
         try:
-            # 获取markdown文本的前3000字符（通常包含标题、作者和摘要）
+            # 获取完整的markdown文本（包含标题、作者和摘要等）
             full_text = self.lightweight_content.get("full_text", "")
-            first_part = full_text[:3000]
+            first_part = full_text
             
             # 构建提示 - 强制使用英文以确保JSON内容为英文
             language_prompt = "Please answer in English"
@@ -249,9 +249,7 @@ class LightweightPlanner:
         try:
             # 获取完整的markdown文本
             full_text = self.lightweight_content.get("full_text", "")
-            
-            # 限制文本长度以避免超出模型限制，增加到25000字符以保留更多上下文
-            text_for_analysis = full_text[:25000]
+            text_for_analysis = full_text
             
             # 获取图片信息
             images = self.lightweight_content.get("images", [])
@@ -332,26 +330,65 @@ class LightweightPlanner:
         slides_plan = []
         
         try:
-            # 构建提示 - 强制使用英文以确保JSON内容为英文
-            language_prompt = "Please answer in English"
+            # 检查是否有增强内容
+            enhanced_content = self.lightweight_content.get("enhanced_content", {})
             
-            prompt = ChatPromptTemplate.from_template(SLIDES_PLANNING_PROMPT)
-            
-            # 调用LLM
-            chain = prompt | self.llm
-            response = chain.invoke({
-                "title": paper_info.get("title", ""),
-                "authors": ", ".join(paper_info.get("authors", [])),
-                "abstract": paper_info.get("abstract", ""),
-                "contributions": json.dumps(key_content.get("main_contributions", []), ensure_ascii=False),
-                "background_motivation": key_content.get("background_motivation", ""),
-                "methodology": key_content.get("methodology", ""),
-                "experimental_setup": key_content.get("experimental_setup", ""),
-                "results": key_content.get("results", ""),
-                "conclusions": key_content.get("conclusions", ""),
-                "figures_info": json.dumps(key_content.get("figures", []), ensure_ascii=False),
-                "language_prompt": language_prompt
-            })
+            if enhanced_content:
+                print(f"DEBUG: 使用增强内容分支")
+                # 使用增强后的演讲导向内容
+                presentation_sections = enhanced_content.get("presentation_sections", {})
+                key_narratives = enhanced_content.get("key_narratives", {})
+                enhanced_tables = enhanced_content.get("tables", [])
+                print(f"DEBUG: 找到 {len(enhanced_tables)} 个表格")
+                if enhanced_tables:
+                    print(f"DEBUG: 第一个表格预览: {enhanced_tables[0].get('title', 'No title')}")
+                enhanced_equations = enhanced_content.get("equations", [])
+                
+                # 构建提示 - 强制使用英文以确保JSON内容为英文
+                language_prompt = "Please answer in English"
+                
+                prompt = ChatPromptTemplate.from_template(SLIDES_PLANNING_PROMPT)
+                
+                # 调用LLM，使用增强后的内容
+                chain = prompt | self.llm
+                print(f"DEBUG: tables_info 参数长度: {len(json.dumps(enhanced_tables, ensure_ascii=False))}")
+                print(f"DEBUG: tables_info 预览: {json.dumps(enhanced_tables, ensure_ascii=False)[:200]}...")
+                response = chain.invoke({
+                    "title": paper_info.get("title", ""),
+                    "authors": ", ".join(paper_info.get("authors", [])),
+                    "abstract": paper_info.get("abstract", ""),
+                    "contributions": json.dumps(key_content.get("main_contributions", []), ensure_ascii=False),
+                    "background_motivation": presentation_sections.get("background_context", ""),
+                    "methodology": presentation_sections.get("technical_approach", ""),
+                    "experimental_setup": presentation_sections.get("evidence_proof", ""),
+                    "results": presentation_sections.get("evidence_proof", ""),
+                    "conclusions": presentation_sections.get("impact_significance", ""),
+                    "figures_info": json.dumps(key_content.get("figures", []), ensure_ascii=False),
+                    "tables_info": json.dumps(enhanced_tables, ensure_ascii=False),
+                    "language_prompt": language_prompt
+                })
+            else:
+                # 使用原有逻辑（向后兼容）
+                # 构建提示 - 强制使用英文以确保JSON内容为英文
+                language_prompt = "Please answer in English"
+                
+                prompt = ChatPromptTemplate.from_template(SLIDES_PLANNING_PROMPT)
+                
+                # 调用LLM
+                chain = prompt | self.llm
+                response = chain.invoke({
+                    "title": paper_info.get("title", ""),
+                    "authors": ", ".join(paper_info.get("authors", [])),
+                    "abstract": paper_info.get("abstract", ""),
+                    "contributions": json.dumps(key_content.get("main_contributions", []), ensure_ascii=False),
+                    "background_motivation": key_content.get("background_motivation", ""),
+                    "methodology": key_content.get("methodology", ""),
+                    "experimental_setup": key_content.get("experimental_setup", ""),
+                    "results": key_content.get("results", ""),
+                    "conclusions": key_content.get("conclusions", ""),
+                    "figures_info": json.dumps(key_content.get("figures", []), ensure_ascii=False),
+                    "language_prompt": language_prompt
+                })
             
             # 解析结果
             response_text = response.content if hasattr(response, 'content') else str(response)

@@ -114,6 +114,11 @@ def parse_args():
         default='Madrid',
         help='Beamer主题，如Madrid, Berlin, Singapore等'
     )
+    parser.add_argument(
+        '--disable-llm-enhancement',
+        action='store_true',
+        help='禁用LLM增强功能，仅使用基础PDF解析'
+    )
     
     return parser.parse_args()
 
@@ -225,12 +230,36 @@ def main():
     # 步骤1: 提取PDF内容
     logger.info("步骤1: 提取PDF内容...")
     try:
-        pdf_content, raw_content_path = extract_pdf_content(args.pdf_path, raw_dir)
+        # 决定是否启用LLM增强
+        enable_llm_enhancement = not args.disable_llm_enhancement and bool(api_key)
+        
+        if not enable_llm_enhancement:
+            if args.disable_llm_enhancement:
+                logger.info("用户禁用了LLM增强功能")
+            else:
+                logger.warning("未设置API密钥，将禁用LLM增强功能")
+        
+        pdf_content, raw_content_path = extract_pdf_content(
+            pdf_path=args.pdf_path, 
+            output_dir=raw_dir,
+            enable_llm_enhancement=enable_llm_enhancement,
+            model_name=args.model,
+            api_key=api_key
+        )
         if not pdf_content:
             logger.error("PDF内容提取失败")
             return 1
             
         logger.info(f"PDF内容已保存到: {raw_content_path}")
+        
+        # 检查是否成功使用了LLM增强
+        if pdf_content.get("enhanced_content"):
+            logger.info("✅ LLM增强内容提取成功")
+            enhanced = pdf_content["enhanced_content"]
+            logger.info(f"提取到 {len(enhanced.get('tables', []))} 个表格")
+            logger.info(f"提取到 {len(enhanced.get('presentation_sections', {}))} 个演讲章节")
+        else:
+            logger.info("使用基础PDF解析（未启用LLM增强）")
     except Exception as e:
         logger.error(f"PDF内容提取失败: {str(e)}")
         return 1
