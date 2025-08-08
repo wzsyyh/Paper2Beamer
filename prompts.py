@@ -382,6 +382,9 @@ TEX_GENERATION_PROMPT = r"""
                 *   使用 `\toprule`, `\midrule`, `\bottomrule` (来自 `booktabs` 包) 来画水平线，以获得更专业的外观。
     *   **公式/代码**: 如果 `includes_equation` 或 `includes_code` 为 `true`，请将相应的内容正确地放置在数学环境或代码清单环境中。
 
+3.5. **章节分组**:
+    *   如果 `plan.slides_plan` 中每个对象含有 `section` 字段，请在章节切换时插入一次 `\\section{{<section>}}`；同一章节下的多张幻灯片无需重复插入。
+
 **输出要求**:
 *   只输出完整的、可直接编译的LaTeX代码。
 *   不要包含任何解释、注释或Markdown标记。
