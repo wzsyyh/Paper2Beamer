@@ -119,6 +119,11 @@ def parse_args():
         action='store_true',
         help='禁用LLM增强功能，仅使用基础PDF解析'
     )
+    parser.add_argument(
+        '--interactive-revise',
+        action='store_true',
+        help='启用交互式修订模式，在生成初版后对TEX代码进行迭代修改'
+    )
     
     return parser.parse_args()
 
