@@ -9,10 +9,16 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
 logger = logging.getLogger(__name__)
-# ... existing PROMPT_TEMPLATE ...
+
 PROMPT_TEMPLATE = """
 # Role
-You are an expert LaTeX developer specializing in Beamer presentations. Your task is to function as a code modification assistant. You will receive a specific block of LaTeX code and a user's request to change it. Your only job is to provide the modified version of that code block.
+You are an expert LaTeX developer specializing in Beamer presentations. Your task is to function as a code modification assistant. You will receive a user's request to change something, the history of the conversation, and a relevant block of LaTeX code. Your only job is to provide the modified version of that code block.
+
+# Conversation History
+Here is the history of previous revisions in this session. Use it to understand context for follow-up requests (e.g., "the slide I just added").
+---
+{history}
+---
 
 # User's Request
 The user wants to make the following change:
@@ -39,10 +45,21 @@ class EditorAgent:
     def __init__(self, model_name: str):
         # LangChain会自动从环境变量中读取OPENAI_API_KEY和OPENAI_API_BASE
         self.llm = ChatOpenAI(model=model_name, temperature=0)
+        self.history = []
         logger.info(f"EditorAgent initialized with model: {model_name}")
 
+    def _format_history(self):
+        """Formats the conversation history for the prompt."""
+        if not self.history:
+            return "No history yet."
+        
+        formatted = []
+        for turn in self.history:
+            role = "User" if turn['role'] == 'user' else "Agent"
+            formatted.append(f"{role}: {turn['content']}")
+        return "\n\n".join(formatted)
+
     def _find_target_page_number(self, user_feedback: str) -> int:
-# ... existing _find_target_page_number method ...
         """从用户反馈中提取页码。"""
         # 使用正则表达式查找 "第X页" 或 "page X" 等模式
         matches = re.findall(r'(?:第|page)\s*(\d+)', user_feedback, re.IGNORECASE)
@@ -51,7 +68,6 @@ class EditorAgent:
         return -1
 
     def _find_frame_for_slide(self, tex_content: str, slide_title: str) -> str:
-# ... existing _find_frame_for_slide method ...
         """根据幻灯片标题在TEX内容中找到对应的frame块。"""
         # This pattern is more robust: it finds all frame blocks first.
         # re.DOTALL allows '.' to match newlines.
@@ -72,20 +88,26 @@ class EditorAgent:
     def _compile_tex(self, tex_path: str):
         """编译TEX文件为PDF。"""
         logger.info(f"Compiling {tex_path} to PDF...")
-        output_dir = os.path.dirname(tex_path)
         
-        # 使用xelatex，它对UTF-8和现代字体支持更好
+        # 假定此脚本的调用者在项目根目录或已将根目录加入sys.path
+        # 我们需要从当前工作目录找到到tex文件的相对路径
+        # tex_path是绝对路径
+        project_root = os.getcwd() # 假设从根目录运行
+        relative_tex_path = os.path.relpath(tex_path, project_root)
+        output_dir = os.path.dirname(tex_path)
+
         command = [
             "xelatex",
-            "-interaction=nonstopmode",
             f"-output-directory={output_dir}",
-            tex_path
+            "-interaction=nonstopmode",
+            relative_tex_path
         ]
         
         try:
+            # 从项目根目录运行命令，以确保所有相对路径（如图片）正确
             # 运行两次以确保目录和引用正确
-            subprocess.run(command, check=True, capture_output=True, text=True)
-            subprocess.run(command, check=True, capture_output=True, text=True)
+            subprocess.run(command, check=True, capture_output=True, text=True, cwd=project_root)
+            subprocess.run(command, check=True, capture_output=True, text=True, cwd=project_root)
             logger.info("PDF compilation successful.")
             return True
         except subprocess.CalledProcessError as e:
@@ -137,8 +159,11 @@ class EditorAgent:
             parser = JsonOutputParser()
             chain = prompt | self.llm | parser
             
+            formatted_history = self._format_history()
+            
             logger.info(f"Invoking LLM to revise frame: {slide_title}")
             response = chain.invoke({
+                "history": formatted_history,
                 "user_feedback": user_feedback,
                 "code_snippet": old_code_snippet
             })
@@ -170,7 +195,16 @@ class EditorAgent:
 
             # 7. 编译新的TEX文件
             if not self._compile_tex(revised_tex_path):
+                # 编译失败也要记录历史
+                assistant_message = f"Tried to modify slide '{slide_title}', but the resulting PDF failed to compile."
+                self.history.append({"role": "user", "content": user_feedback})
+                self.history.append({"role": "assistant", "content": assistant_message})
                 return False, revised_tex_path, "Revision saved, but PDF compilation failed."
+            
+            # 8. 更新历史
+            assistant_message = f"Successfully modified slide '{slide_title}' and recompiled the PDF."
+            self.history.append({"role": "user", "content": user_feedback})
+            self.history.append({"role": "assistant", "content": assistant_message})
             
             return True, revised_tex_path, "Revision and compilation successful."
 
@@ -183,20 +217,6 @@ class EditorAgent:
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}", exc_info=True)
             return False, None, str(e)
-
-
-            
-            # 执行替换
-            new_tex_content = tex_content.replace(old_code, new_code, 1)
-            
-            # 6. 保存新文件
-            revision_count = 1
-            while True:
-                revision_tex_name = f"{os.path.splitext(os.path.basename(tex_path))[0]}_rev{revision_count}.tex"
-                new_tex_path = os.path.join(output_dir, revision_tex_name)
-                if not os.path.exists(new_tex_path):
-                    break
-                revision_count += 1
             
             with open(new_tex_path, 'w', encoding='utf-8') as f:
                 f.write(new_tex_content)
