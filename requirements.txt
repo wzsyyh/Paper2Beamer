@@ -1,35 +1,39 @@
-# 基础依赖
-openai>=1.0.0
-langchain>=0.1.0
-python-dotenv
+# 直接依赖（已按当前 ptb 环境版本固定）
+# 完整可复现环境请查看 requirements.lock
 
-# PDF与图片处理
-PyMuPDF
-pdf2image
-Pillow
-opencv-python
+# 基础与工具
+openai==1.82.0
+python-dotenv==1.1.0
+requests==2.32.3
+tqdm==4.67.1
+gradio==5.31.0
+langsmith==0.3.42
 
-# 图片结构化与OCR
-layoutparser
-paddleocr
-paddlepaddle
+# LangChain 生态
+langchain==0.3.25
+langchain-core==0.3.61
+langchain-openai==0.3.18
+langchain-community==0.3.24
+langchain-text-splitters==0.3.8
 
-# 其他
-requests
+# PDF 与图片处理
+PyMuPDF==1.26.0
+pdf2image==1.17.0
+pillow==10.4.0
+opencv-python==4.11.0.86
 
-# PDF处理
-pdfplumber==0.10.3
-pytesseract==0.3.10
+# 结构化提取与 OCR
+modelscope==1.26.0
+marker-pdf==1.7.4
+surya-ocr==0.14.5
+paddleocr==3.1.0
+paddlepaddle==3.1.0
 
-# 语言模型 - 更新版本
-langchain-core>=0.3.61
-langchain-openai>=0.3.18
+# LaTeX AST 解析
+pylatexenc==2.10
 
-# 图形和数据处理
-matplotlib==3.8.3
-numpy==1.26.4
-
-# 其他工具
-tqdm==4.66.1
-gradio>=4.44.0  # 升级到最新版本
-langsmith
+# 评测/ML（评测脚本依赖）
+PyPDF2==3.0.1
+transformers==4.52.3
+torch==2.7.0
+torchvision==0.22.0
