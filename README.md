@@ -39,7 +39,8 @@ Auto-Slides is an intelligent system that automatically converts academic resear
 - **Pedagogical Optimization**: Creates presentation-oriented narratives that enhance learning and comprehension
 - **Multimodal Output**: Generates slides with proper figure placement, table formatting, and code syntax highlighting
 - **Multiple Themes**: Supports various Beamer themes (Madrid, Berlin, Singapore, etc.)
-- **Bilingual Support**: Works with both English and Chinese papers
+- **Multilingual Support**: Works with both English and Chinese papers, with automatic translation to 8+ languages
+- **Automatic Translation**: Translate presentation content to Chinese, Japanese, German, French, Spanish, Korean, Russian, and more
 - **Speech Generation**: Optional accompanying speech script generation
 
 ## 📋 Requirements
@@ -135,6 +136,26 @@ python main.py path/to/your/paper.pdf \
     --verbose
 ```
 
+### Generate Multilingual Presentations
+
+Generate presentations in different languages:
+
+```bash
+# Generate Chinese presentation
+python main.py path/to/your/paper.pdf --ppt-language zh
+
+# Generate Japanese presentation
+python main.py path/to/your/paper.pdf --ppt-language ja
+
+# Generate German presentation
+python main.py path/to/your/paper.pdf --ppt-language de
+
+# Generate French presentation
+python main.py path/to/your/paper.pdf --ppt-language fr
+```
+
+Supported languages: `en` (English), `zh` (Chinese), `ja` (Japanese), `de` (German), `fr` (French), `es` (Spanish), `ko` (Korean), `ru` (Russian)
+
 ### Disable Interactive Revision
 
 By default, Auto-Slides enables interactive revision after generating slides. To disable this feature:
@@ -163,7 +184,8 @@ python main.py --revise \
 
 #### Basic Options
 - `--output-dir, -o`: Output directory (default: `output`)
-- `--language, -l`: Output language (`zh` or `en`, default: `en`)
+- `--language, -l`: Output language for compiler selection (`zh` or `en`, default: `en`)
+- `--ppt-language`: Presentation content language - translates slides to target language (`en`, `zh`, `ja`, `de`, `fr`, `es`, `ko`, `ru`, default: `en`)
 - `--model, -m`: Language model to use (default: `gpt-4o`)
 - `--theme`: Beamer theme (default: `Madrid`)
 - `--verbose, -v`: Show verbose logs
@@ -201,6 +223,8 @@ The system generates organized output in the specified directory:
 output/
 ├── raw/<session_id>/          # Extracted PDF content
 ├── plan/<session_id>/         # Presentation plans (JSON)
+│   ├── presentation_plan.json            # Original English plan
+│   └── presentation_plan_translated_*.json  # Translated plans (if --ppt-language used)
 ├── tex/<session_id>/          # Generated LaTeX files and PDFs
 ├── images/<session_id>/       # Extracted figures and tables
 ├── verification/<session_id>/ # Verification reports
@@ -214,10 +238,11 @@ Auto-Slides employs a sophisticated multi-agent framework with the following com
 
 1. **PDF Parser**: Extracts content using marker-pdf and OCR technologies
 2. **Presentation Planner**: Generates structured presentation plans based on cognitive science principles
-3. **Verification Agent**: Ensures content coverage and accuracy through automated validation
-4. **Repair Agent**: Automatically fixes identified issues and improves content completeness
-5. **TEX Generator**: Creates high-quality LaTeX Beamer code with proper formatting
-6. **Interactive Editor**: Enables real-time customization through natural language dialogue
+3. **Content Translator**: Translates presentation content to target language while preserving technical terms and formatting
+4. **Verification Agent**: Ensures content coverage and accuracy through automated validation
+5. **Repair Agent**: Automatically fixes identified issues and improves content completeness
+6. **TEX Generator**: Creates high-quality LaTeX Beamer code with proper formatting
+7. **Interactive Editor**: Enables real-time customization through natural language dialogue
 
 The system processes research papers through multiple stages, from initial content extraction to final presentation generation, with built-in quality assurance and user interaction capabilities.
 
@@ -232,8 +257,28 @@ The system processes research papers through multiple stages, from initial conte
 
 ## 🌍 Language Support
 
-- **English**: Full support with optimized prompts
-- **Chinese**: Full support with Chinese-specific processing
+### Content Languages (via --ppt-language)
+Auto-Slides can automatically translate your presentation content to multiple languages:
+
+- **English** (en): Default language
+- **Chinese** (zh): Simplified Chinese - 简体中文
+- **Japanese** (ja): 日本語
+- **German** (de): Deutsch
+- **French** (fr): Français
+- **Spanish** (es): Español
+- **Korean** (ko): 한국어
+- **Russian** (ru): Русский
+
+The translation feature:
+- Preserves author names and technical terminology
+- Maintains mathematical formulas and LaTeX commands
+- Keeps figure paths and references intact
+- Uses appropriate fonts and compilers for each language
+- Automatically falls back to English if translation fails
+
+### Compiler Selection (via --language)
+- **English** (`en`): Uses pdflatex compiler
+- **Chinese** (`zh`): Uses xelatex compiler with ctex package for proper font support
 
 ## ⚠️ Troubleshooting
 
