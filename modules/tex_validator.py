@@ -299,26 +299,29 @@ class TexValidator:
         
         self.logger.info(f"使用图片目录: {actual_images_dir}")
         
-        # 处理每个图片引用 - 总是修正路径为从编译目录的正确相对路径
+        # 处理每个图片引用 - 复制图片到临时目录并更新路径
         missing_images = []
         for img_path in matches:
             # 提取文件名
             img_filename = os.path.basename(img_path)
-            
+
             # 尝试在实际图片目录中查找图片
             src_file = os.path.join(actual_images_dir, img_filename)
             if os.path.exists(src_file) and os.path.isfile(src_file):
                 self.logger.info(f"找到图片: {src_file}")
-                # 计算从编译目录到图片的正确相对路径
-                # tex_file所在目录相对于项目根目录的路径
-                tex_dir = os.path.dirname(os.path.abspath(tex_file))
-                # actual_images_dir的绝对路径
-                images_abs_path = os.path.abspath(actual_images_dir)
-                # 计算相对路径
-                rel_path = os.path.relpath(images_abs_path, tex_dir)
-                new_path = f"{rel_path}/{img_filename}"
-                tex_content = tex_content.replace(f"{{{img_path}}}", f"{{{new_path}}}")
-                self.logger.info(f"更新图片路径: {img_path} -> {new_path}")
+                # 复制图片到临时images目录
+                dst_file = os.path.join(images_dir, img_filename)
+                try:
+                    if not os.path.exists(dst_file):
+                        shutil.copy2(src_file, dst_file)
+                        self.logger.info(f"复制图片到临时目录: {src_file} -> {dst_file}")
+                    # 使用相对于tex文件的路径(临时目录下的images文件夹)
+                    new_path = f"images/{img_filename}"
+                    tex_content = tex_content.replace(f"{{{img_path}}}", f"{{{new_path}}}")
+                    self.logger.info(f"更新图片路径: {img_path} -> {new_path}")
+                except Exception as e:
+                    self.logger.error(f"复制图片失败 {src_file}: {str(e)}")
+                    missing_images.append(img_path)
             else:
                 self.logger.warning(f"未找到图片: {img_path}")
                 missing_images.append(img_path)
