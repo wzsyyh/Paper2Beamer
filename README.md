@@ -9,14 +9,17 @@
     &nbsp;&nbsp;
     <strong>Yiwei Wang</strong><sup>2</sup>
     &nbsp;&nbsp;
-    <strong>Chi Zhang</strong><sup>1</sup><sup>*</sup>
+    <strong>Chi Zhang</strong><sup>1</sup><sup>†</sup>
     <br>
     <sup>1</sup>AGI Lab, Westlake University&nbsp;
     <sup>2</sup>University of California at Merced
     <br>
+    <sup>†</sup>Corresponding author
+    <br>
     <a href="mailto:yangyuheng@westlake.edu.cn">yangyuheng@westlake.edu.cn</a>
     <br>
     <a href='https://arxiv.org/abs/2509.11062'><img src='https://img.shields.io/badge/ArXiv-2509.11062-red'></a>&nbsp;
+    <a href='https://2026.ieeeicme.org/'><img src='https://img.shields.io/badge/ICME-2026%20Accepted-brightgreen'></a>&nbsp;
     <a href='https://auto-slides.github.io/'><img src='https://img.shields.io/badge/Project-Page-green'></a>&nbsp;
     <a href='https://github.com/wzsyyh/Auto-Slides'><img src='https://img.shields.io/badge/GitHub-Auto--Slides-blue'></a>&nbsp;
     <br>
