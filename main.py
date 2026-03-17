@@ -212,7 +212,8 @@ def main():
     output_dir = args.output_dir
     
     # Use unique session ID to distinguish different runs
-    session_id = f"{int(time.time())}"
+    from datetime import datetime
+    session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Create output directories for each stage
     raw_dir = os.path.join(output_dir, "raw", session_id)
