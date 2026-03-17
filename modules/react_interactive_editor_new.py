@@ -42,7 +42,7 @@ class ReactInteractiveEditor:
     Based on document semantic understanding rather than page numbering for positioning
     """
     
-    def __init__(self, tex_file_path, source_content=None, workflow_state=None):
+    def __init__(self, tex_file_path, source_content=None, workflow_state=None, model_name="gpt-4o"):
         """
         Initialize editor
         
@@ -50,10 +50,12 @@ class ReactInteractiveEditor:
             tex_file_path: LaTeX file path
             source_content: Original PDF parsing content (optional, for content expansion)
             workflow_state: Workflow state manager, for accessing intermediate products
+            model_name: Language model name to use (default: "gpt-4o")
         """
         self.tex_file_path = tex_file_path
         self.source_content = source_content
         self.workflow_state = workflow_state
+        self.model_name = model_name
         self.conversation_history = []
         
         # Initialize reference retrieval agent (if workflow state is available)
@@ -137,7 +139,7 @@ class ReactInteractiveEditor:
             response_format = {"type": "json_object"} if json_mode else {"type": "text"}
             
             response = client.chat.completions.create(
-                model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+                model=self.model_name,
                 messages=full_messages,
                 temperature=temperature,
                 response_format=response_format

@@ -28,16 +28,18 @@ class ReactInteractiveEditor:
     基于文档语义理解而不是页码标记进行定位
     """
     
-    def __init__(self, tex_file_path, source_content=None):
+    def __init__(self, tex_file_path, source_content=None, model_name="gpt-4o"):
         """
         初始化编辑器
         
         Args:
             tex_file_path: LaTeX文件路径
             source_content: 原始PDF解析内容（可选，用于内容扩展）
+            model_name: 语言模型名称（默认："gpt-4o"）
         """
         self.tex_file_path = tex_file_path
         self.source_content = source_content
+        self.model_name = model_name
         self.conversation_history = []
         
         # 读取文档内容
@@ -124,7 +126,7 @@ class ReactInteractiveEditor:
             response_format = {"type": "json_object"} if json_mode else {"type": "text"}
             
             response = client.chat.completions.create(
-                model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+                model=self.model_name,
                 messages=full_messages,
                 temperature=temperature,
                 response_format=response_format

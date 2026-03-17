@@ -26,7 +26,7 @@ class LightweightExtractor:
         self.output_dir = output_dir
         
         # Use timestamp to create unique session ID
-        self.session_id = f"{int(time.time())}"
+        self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # Create session-specific image directory
         self.img_dir = os.path.join("output", "images", self.session_id)

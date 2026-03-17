@@ -258,8 +258,8 @@ class RevisionTexGenerator:
         """
         try:
             # 创建一个唯一的文件名
-            import time
-            timestamp = int(time.time())
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_file = os.path.join(self.output_dir, f"revised_{timestamp}.tex")
             
             # 保存TEX代码

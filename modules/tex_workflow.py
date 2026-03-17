@@ -437,7 +437,8 @@ def run_revision_tex_workflow(
     os.makedirs(output_dir, exist_ok=True)
     
     # 创建会话特定的输出目录
-    session_id = f"revision_{int(time.time())}"
+    from datetime import datetime
+    session_id = f"revision_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     session_output_dir = os.path.join(output_dir, session_id)
     os.makedirs(session_output_dir, exist_ok=True)
     
