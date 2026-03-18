@@ -31,6 +31,7 @@ from modules.pdf_parser import extract_pdf_content
 from modules.presentation_planner import generate_presentation_plan
 from modules.tex_workflow import run_tex_workflow, run_revision_tex_workflow
 from modules.workflow_state import WorkflowState
+from modules.content_translator import translate_presentation_plan_file
 
 def setup_logging(verbose=False):
     """Set up logging level and format"""
@@ -159,7 +160,13 @@ def parse_args():
         default='academic_conference',
         help='Speech style type'
     )
-    
+    parser.add_argument(
+        '--ppt-language',
+        choices=['en', 'zh', 'ja', 'de', 'fr', 'es', 'ko', 'ru'],
+        default='en',
+        help='PPT content language (en for English, zh for Chinese, ja for Japanese, etc.). This will translate the presentation content.'
+    )
+
     return parser.parse_args()
 
 def interactive_dialog(planner, logger):
@@ -349,7 +356,40 @@ def main():
     except Exception as e:
         logger.error(f"Presentation plan generation failed: {str(e)}")
         return 1
-    
+
+    # Step 2.4: Translate presentation plan (if ppt_language is specified)
+    if args.ppt_language and args.ppt_language != 'en':
+        logger.info(f"Step 2.4: Translating presentation plan to {args.ppt_language}...")
+        try:
+            translation_success, translation_message, translated_plan_path = translate_presentation_plan_file(
+                plan_path=plan_path,
+                output_dir=plan_dir,
+                source_language='en',  # Default source language is English
+                target_language=args.ppt_language,
+                model_name=args.model,
+                api_key=api_key
+            )
+
+            if translation_success and translated_plan_path:
+                logger.info(f"✅ Translation completed: {translation_message}")
+                logger.info(f"Translated plan saved to: {translated_plan_path}")
+
+                # Update plan_path to use translated version
+                plan_path = translated_plan_path
+
+                # Update workflow state
+                workflow_state.set_planner_output(translated_plan_path)
+
+                # Update language parameter to match ppt_language for correct compiler and font selection
+                args.language = args.ppt_language
+                logger.info(f"Updated language setting to {args.ppt_language} for TEX generation")
+            else:
+                logger.warning(f"⚠️ Translation failed: {translation_message}")
+                logger.info("Continuing with original English plan")
+        except Exception as e:
+            logger.warning(f"Translation step failed: {str(e)}")
+            logger.info("Continuing with original English plan")
+
     # Step 2.5: Verify presentation plan (using simplified verification agent)
     verification_passed = True
     verification_report = None
@@ -518,18 +558,22 @@ def main():
                 # Speech script generation failure does not affect main process
                 
         if success:
-            
+
             # Enable interactive revision mode by default, unless user explicitly disables it
-            if not args.no_interactive_revise:
+            # Check if running in an interactive terminal
+            import sys
+            is_interactive_terminal = sys.stdin.isatty() and sys.stdout.isatty()
+
+            if not args.no_interactive_revise and is_interactive_terminal:
                 logger.info("\n=== Starting Interactive Revision Mode ===")
                 logger.info("PDF has been generated. You can now modify slide content through natural language dialogue.")
-                
+
                 # Import and start new version ReAct mode interactive editor
                 from modules.react_interactive_editor_new import ReactInteractiveEditor
-                
+
                 if workflow_state.tex_output_path:
                     logger.info(f"Will edit file: {workflow_state.tex_output_path}")
-                    
+
                     # Start new version interactive editor, passing original PDF content and workflow state
                     # Extract original text from PDF content
                     source_text = None
@@ -537,15 +581,17 @@ def main():
                         source_text = pdf_content['full_text']
                     elif isinstance(pdf_content, str):
                         source_text = pdf_content
-                    
+
                     editor = ReactInteractiveEditor(
-                        workflow_state.tex_output_path, 
+                        workflow_state.tex_output_path,
                         source_content=source_text,
                         workflow_state=workflow_state
                     )
                     editor.interactive_session()
                 else:
                     logger.error("Generated TEX file not found, cannot start interactive revision mode")
+            elif not is_interactive_terminal:
+                logger.info("\n=== Non-interactive environment detected, skipping interactive revision mode ===")
             
             # Output revision mode usage hints (if interactive revision is disabled)
             if args.no_interactive_revise:

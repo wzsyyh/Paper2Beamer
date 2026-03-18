@@ -129,13 +129,30 @@ class TexGenerator:
         # 获取论文信息和幻灯片计划
         paper_info = self.presentation_plan.get("paper_info", {})
         slides_plan = self.presentation_plan.get("slides_plan", [])
-        
+
         # 预处理幻灯片中的图片引用
         self._preprocess_slide_figures(slides_plan)
-        
-        # 强制使用英文生成，因为JSON内容已经是英文的
-        language_prompt = "Please generate in English"
-        
+
+        # 根据language参数设置生成语言
+        # 注意: 如果presentation_plan已经被翻译,那么内容已经是目标语言了
+        # 这里的language_prompt主要用于指导LaTeX生成的风格和格式
+        if self.language == "zh":
+            language_prompt = "Please generate in Chinese (Simplified)"
+        elif self.language == "ja":
+            language_prompt = "Please generate in Japanese"
+        elif self.language == "de":
+            language_prompt = "Please generate in German"
+        elif self.language == "fr":
+            language_prompt = "Please generate in French"
+        elif self.language == "es":
+            language_prompt = "Please generate in Spanish"
+        elif self.language == "ko":
+            language_prompt = "Please generate in Korean"
+        elif self.language == "ru":
+            language_prompt = "Please generate in Russian"
+        else:
+            language_prompt = "Please generate in English"
+
         # 构建提示
         prompt = ChatPromptTemplate.from_template(TEX_GENERATION_PROMPT)
         
