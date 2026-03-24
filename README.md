@@ -57,7 +57,7 @@ Auto-Slides is an intelligent system that automatically converts academic resear
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/auto-slides.git
+git clone https://github.com/Westlake-AGI-Lab/Auto-Slides.git
 cd auto-slides
 ```
 
