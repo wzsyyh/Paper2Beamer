@@ -96,6 +96,12 @@ class ReactInteractiveEditor:
             result_json = self._call_llm([{"role": "user", "content": prompt}], system_prompt, json_mode=True)
             
             if result_json and "slides" in result_json:
+                slides = result_json.get("slides") or []
+                actual_total = len(slides)
+                recorded_total = result_json.get("total_slides")
+                if actual_total and recorded_total != actual_total:
+                    print(f"   ℹ️ 校正幻灯片数量: {recorded_total} -> {actual_total}")
+                result_json["total_slides"] = actual_total
                 print(f"   ✓ 已生成文档地图：{result_json['total_slides']} 页幻灯片")
                 return result_json
             else:

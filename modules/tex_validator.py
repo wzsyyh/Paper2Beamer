@@ -309,14 +309,16 @@ class TexValidator:
             src_file = os.path.join(actual_images_dir, img_filename)
             if os.path.exists(src_file) and os.path.isfile(src_file):
                 self.logger.info(f"找到图片: {src_file}")
-                # 计算从编译目录到图片的正确相对路径
-                # tex_file所在目录相对于项目根目录的路径
+                # 确保图片存在于临时images目录
+                target_file = os.path.join(images_dir, img_filename)
+                if not os.path.exists(target_file):
+                    os.makedirs(os.path.dirname(target_file), exist_ok=True)
+                    shutil.copy2(src_file, target_file)
+                    self.logger.info(f"复制图片到临时目录: {src_file} -> {target_file}")
+                # 计算从编译目录到临时images目录的相对路径
                 tex_dir = os.path.dirname(os.path.abspath(tex_file))
-                # actual_images_dir的绝对路径
-                images_abs_path = os.path.abspath(actual_images_dir)
-                # 计算相对路径
-                rel_path = os.path.relpath(images_abs_path, tex_dir)
-                new_path = f"{rel_path}/{img_filename}"
+                rel_path = os.path.relpath(images_dir, tex_dir)
+                new_path = os.path.join(rel_path, img_filename).replace(os.sep, "/")
                 tex_content = tex_content.replace(f"{{{img_path}}}", f"{{{new_path}}}")
                 self.logger.info(f"更新图片路径: {img_path} -> {new_path}")
             else:
